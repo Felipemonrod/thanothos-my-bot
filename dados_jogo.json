@@ -78,19 +78,6 @@
             ]
         },
         {
-            "nome": "Will Auceptin",
-            "emojis": [
-                "🎰",
-                "🐍",
-                "👶",
-                "🍨"
-            ],
-            "respostas_aceitas": [
-                "will",
-                "anjo de mercurio"
-            ]
-        },
-        {
             "nome": "Amon",
             "emojis": [
                 "🧐",
@@ -103,6 +90,333 @@
                 "deus do engano",
                 "anjo do tempo",
                 "blasfemador"
+            ]
+        },
+        {
+            "nome": "Roselle Gustav",
+            "emojis": [
+                "😍",
+                "🇫🇷",
+                "🚽",
+                "📄"
+            ],
+            "respostas_aceitas": [
+                "roselle",
+                "protagonista de uma era",
+                "apreciador de demônias"
+            ]
+        },
+        {
+            "nome": "Arrodes",
+            "emojis": [
+                "😳",
+                "🛐",
+                "🌩️",
+                "🪞"
+            ],
+            "respostas_aceitas": [
+                "arrodes",
+                "espelho mágico",
+                "2-111",
+                "1-111"
+            ]
+        },
+        {
+            "nome": "Azik Eggers",
+            "emojis": [
+                "😴",
+                "🪽",
+                "🧜",
+                "🦴"
+            ],
+            "respostas_aceitas": [
+                "consul da morte",
+                "anjo da morte",
+                "azik"
+            ]
+        },
+        {
+            "nome": "Adam",
+            "emojis": [
+                "🎭",
+                "☀️",
+                "🪶",
+                "✝️"
+            ],
+            "respostas_aceitas": [
+                "adam",
+                "anjo da imaginação",
+                "grisha"
+            ]
+        },
+        {
+            "nome": "Merlin Hermes",
+            "emojis": [
+                "📉",
+                "🧞",
+                "🗺️",
+                "🪄"
+            ],
+            "respostas_aceitas": [
+                "merlin",
+                "mago errante",
+                "mágico milagroso"
+            ]
+        },
+        {
+            "nome": "Frank Lee",
+            "emojis": [
+                "☠️",
+                "🧑‍🔬",
+                "🐄",
+                "🍄"
+            ],
+            "respostas_aceitas": [
+                "especialista em venenos",
+                "rei dos cogumelos",
+                "o verdadeiro rei mutante dos cogumelos",
+                "frank lee",
+                "li keji"
+            ]
+        },
+        {
+            "nome": "Emilyn White",
+            "emojis": [
+                "🦇",
+                "🌕",
+                "🩸",
+                "🍷"
+            ],
+            "respostas_aceitas": [
+                "emelyn",
+                "lua",
+                "bai ailin"
+            ]
+        },
+        {
+            "nome": "Leonard Mitchell",
+            "emojis": [
+                "😴",
+                "🗡️",
+                "👁️‍🗨️",
+                "🦉"
+            ],
+            "respostas_aceitas": [
+                "estrela",
+                "querido poeta",
+                "senhor poeta",
+                "poeta",
+                "leonard",
+                "leo",
+                "poeta gay",
+                "leonard mitchell"
+            ]
+        },
+        {
+            "nome": "Will Auceptin",
+            "emojis": [
+                "🎰",
+                "🐍",
+                "👶",
+                "🍨"
+            ],
+            "respostas_aceitas": [
+                "will",
+                "anjo de mercúrio"
+            ]
+        },
+        {
+            "nome": "Leodero",
+            "emojis": [
+                "🌊",
+                "⚡",
+                "🌪️",
+                "🔱"
+            ],
+            "respostas_aceitas": [
+                "leodero",
+                "senhor das tempestades",
+                "anjo do vento",
+                "tirano"
+            ]
+        },
+        {
+            "nome": "Aucuses",
+            "emojis": [
+                "☀️",
+                "🔥",
+                "✨",
+                "⛪"
+            ],
+            "respostas_aceitas": [
+                "aucuses",
+                "anjo branco",
+                "ardente sol eterno",
+                "sol eterno"
+            ]
+        },
+        {
+            "nome": "Herabergen",
+            "emojis": [
+                "📚",
+                "🧠",
+                "👁️",
+                "🦉"
+            ],
+            "respostas_aceitas": [
+                "herabergen",
+                "heraberg",
+                "deus da sabedoria",
+                "deus do conhecimento",
+                "torre"
+            ]
+        },
+        {
+            "nome": "Omebella",
+            "emojis": [
+                "🌿",
+                "🌾",
+                "🐄",
+                "🌍"
+            ],
+            "respostas_aceitas": [
+                "omebella",
+                "deusa da colheita"
+            ]
+        },
+        {
+            "nome": "Verdadeiro Criador",
+            "emojis": [
+                "🩸",
+                "😵‍💫",
+                "👁️‍🗨️",
+                "✝️"
+            ],
+            "respostas_aceitas": [
+                "grisha",
+                "criador caído",
+                "verdadeiro criador",
+                "true creator",
+                "enforcado"
+            ]
+        },
+        {
+            "nome": "Deus da Maquinaria",
+            "emojis": [
+                "⚙️",
+                "🤖",
+                "🔧",
+                "🚂"
+            ],
+            "respostas_aceitas": [
+                "deus do artesanato",
+                "deus do vapor",
+                "deus da maquinaria",
+                "deus do vapor e da maquinaria",
+                "paragon"
+            ]
+        },
+        {
+            "nome": "Sábio Oculto",
+            "emojis": [
+                "📚",
+                "🌀",
+                "👁️",
+                "📜"
+            ],
+            "respostas_aceitas": [
+                "buscador do conhecimento",
+                "eremita",
+                "sábio oculto",
+                "sábio"
+            ]
+        },
+        {
+            "nome": "Demônia Primordial",
+            "emojis": [
+                "💋",
+                "🩸",
+                "🔥",
+                "👑"
+            ],
+            "respostas_aceitas": [
+                "cheek",
+                "primordial",
+                "demônia primordial",
+                "demônia do caos",
+                "falsa deidade",
+                "imperatriz"
+            ]
+        },
+        {
+            "nome": "Mãe Árvore do Desejo",
+            "emojis": [
+                "🌳",
+                "💀",
+                "🕸️",
+                "💋"
+            ],
+            "respostas_aceitas": [
+                "mtod",
+                "mãe árvore do desejo",
+                "patriarca",
+                "pai dos diabos"
+            ]
+        },
+        {
+            "nome": "Deusa Mãe da Depravação",
+            "emojis": [
+                "🌑",
+                "🩸",
+                "👶",
+                "🐙"
+            ],
+            "respostas_aceitas": [
+                "lua primordial",
+                "a grande mãe",
+                "mãe de todos",
+                "deusa mãe da depravação"
+            ]
+        },
+        {
+            "nome": "Filho do Caos",
+            "emojis": [
+                "🌌👁️🌀⚡"
+            ],
+            "respostas_aceitas": [
+                "filho do caos",
+                "névoa da incerteza",
+                "verdade",
+                "gênio"
+            ]
+        },
+        {
+            "nome": "Medici",
+            "emojis": [
+                "🔥",
+                "⚔️",
+                "👑",
+                "🩸"
+            ],
+            "respostas_aceitas": [
+                "anjo vermelho",
+                "anjo da guerra",
+                "medici"
+            ]
+        },
+        {
+            "nome": "Ouroboros",
+            "emojis": [
+                "🐍",
+                "♾️",
+                "🔮",
+                "⏳"
+            ],
+            "respostas_aceitas": [
+                "ouroboros",
+                "devorador de cauda",
+                "anjo do destino",
+                "cobra boba"
             ]
         }
     ]
