@@ -1,0 +1,109 @@
+{
+    "canais_permitidos": [
+        1479524416323977326,
+        1255155783558238249,
+        1392601486432796783,
+        1470392856731717752,
+        1479529377652805780
+    ],
+    "cargos_permitidos": [
+        1472967753580150845,
+        1256282611064508456,
+        1392857196848746537
+    ],
+    "personagens": [
+        {
+            "nome": "Klein Moretti",
+            "emojis": [
+                "🎩",
+                "🔮",
+                "💷",
+                "🐙"
+            ],
+            "respostas_aceitas": [
+                "klein",
+                "tolo"
+            ]
+        },
+        {
+            "nome": "Audrey",
+            "emojis": [
+                "👑",
+                "💰",
+                "🧠",
+                "🐶"
+            ],
+            "respostas_aceitas": [
+                "audrey",
+                "justiça"
+            ]
+        },
+        {
+            "nome": "Derrick Berg",
+            "emojis": [
+                "⚡",
+                "🛡",
+                "🌞",
+                "⛪"
+            ],
+            "respostas_aceitas": [
+                "derrick",
+                "sol"
+            ]
+        },
+        {
+            "nome": "Alger",
+            "emojis": [
+                "🌊",
+                "⚓",
+                "🧔‍♂️",
+                "🌩️"
+            ],
+            "respostas_aceitas": [
+                "alger",
+                "enforcado"
+            ]
+        },
+        {
+            "nome": "Fors",
+            "emojis": [
+                "✍️",
+                "📚",
+                "🚪",
+                "😅"
+            ],
+            "respostas_aceitas": [
+                "fors",
+                "mágica"
+            ]
+        },
+        {
+            "nome": "Will Auceptin",
+            "emojis": [
+                "🎰",
+                "🐍",
+                "👶",
+                "🍨"
+            ],
+            "respostas_aceitas": [
+                "will",
+                "anjo de mercurio"
+            ]
+        },
+        {
+            "nome": "Amon",
+            "emojis": [
+                "🧐",
+                "🪶",
+                "😈",
+                "🕰️"
+            ],
+            "respostas_aceitas": [
+                "amon",
+                "deus do engano",
+                "anjo do tempo",
+                "blasfemador"
+            ]
+        }
+    ]
+}
