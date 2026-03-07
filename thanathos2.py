@@ -80,6 +80,14 @@ AMON_FOOTERS = [
     "Digtie sua resposta no chat! • Use !dic para aceelrar",
 ]
 
+AMON_FRASES_ESCAPE = [
+    "*\"Você realmente achou que eu era tão simples de decifrar? Eu sou **Amon**, o Enganador. Cada pista que você seguiu... fui eu que coloquei lá.\"* 🧐😈",
+    "*\"Pathetíco. Você olhou para as dicas e viu exatamente o que eu queria que você visse. Eu sou **Amon**... e você nunca me pegou.\"* 👁️",
+    "*\"Oh, tão perto... e tão longe. A identidade que você acertou? Eu a roubei há tempos. Eu sou **Amon**, e este rosto nunca foi meu.\"* 🎭",
+    "*\"Você caíu perfeitamente na minha armadilha. Enquanto tentava adivinhar, eu já sabia cada palavra que você ia digitar. Sou **Amon**, o Deus do Engano.\"* 🕳️",
+    "*\"Impressionante... que você caiu. Cada erro nas dicas era um aviso, e mesmo assim você escolheu o caminho errado. Eu sou **Amon**.\"* 🦇",
+]
+
 def encontrar_amon():
     """Procura o personagem Amon na lista de personagens."""
     for pers in dados["personagens"]:
@@ -149,12 +157,13 @@ def escolher_emojis(personagem):
     return list(random.choice(rotacoes))
 
 class JogoEmoji:
-    def __init__(self, bot, canal, personagem, emojis_rodada, modo_amon=False):
+    def __init__(self, bot, canal, personagem, emojis_rodada, modo_amon=False, vitima_disfarce=None):
         self.bot = bot
         self.canal = canal
         self.personagem = personagem
         self.emojis = emojis_rodada
-        self.modo_amon = modo_amon  # Se True, o Amon está se passando por outro
+        self.modo_amon = modo_amon
+        self.vitima_disfarce = vitima_disfarce  # Personagem que o Amon está imitando
         self.indice_dica = 1 
         self.tempo_espera = 20 
         self.task_dica = bot.loop.create_task(self.loop_dicas())
@@ -943,14 +952,16 @@ async def iniciar(ctx):
         emojis_rodada = gerar_evento_amon(personagem_sorteado)
         if emojis_rodada:
             modo_amon = True
-            # O personagem "real" pra fins de resposta é o Amon
+            vitima = personagem_sorteado  # Guarda a vítima antes de trocar
             personagem_sorteado = amon
     
     if not modo_amon:
         # Escolhe a rotação de emojis normalmente (com chance de mix raro)
         emojis_rodada = escolher_emojis(personagem_sorteado)
     
-    jogo = JogoEmoji(bot, ctx.channel, personagem_sorteado, emojis_rodada, modo_amon=modo_amon)
+    jogo = JogoEmoji(bot, ctx.channel, personagem_sorteado, emojis_rodada, 
+                     modo_amon=modo_amon, 
+                     vitima_disfarce=vitima if modo_amon else None)
     jogos_ativos[ctx.channel.id] = jogo
     
     embed = discord.Embed(
@@ -993,6 +1004,30 @@ async def on_message(message):
             jogo = jogos_ativos[message.channel.id]
             chute_do_usuario = message.content
             
+            # === Modo Amon: checar se a pessoa chutou a vítima (disfarce) ===
+            if jogo.modo_amon and jogo.vitima_disfarce:
+                if chute_corresponde(chute_do_usuario, jogo.vitima_disfarce["respostas_aceitas"]):
+                    # Caiu na armadilha! Encerra o jogo e Amon escapa
+                    jogo_encerrado = jogos_ativos.pop(message.channel.id, None)
+                    if jogo_encerrado is None:
+                        return
+                    if not jogo_encerrado.task_dica.done():
+                        jogo_encerrado.task_dica.cancel()
+
+                    frase = random.choice(AMON_FRASES_ESCAPE)
+                    embed_enganado = discord.Embed(
+                        title="🎭 Você foi Enganado!",
+                        description=(
+                            f"{message.author.mention}, você respondeu **{jogo_encerrado.vitima_disfarce['nome']}**...\n\n"
+                            f"Mas o personagem real era o **Amon**! 😈\n\n"
+                            f"{frase}"
+                        ),
+                        color=0x8B0000
+                    )
+                    embed_enganado.set_footer(text="O Amon escapou impune... da próxima vez, preste atenção nos erros.")
+                    await message.reply(embed=embed_enganado)
+                    return
+
             if chute_corresponde(chute_do_usuario, jogo.personagem["respostas_aceitas"]):
                 # Pega o jogo e remove da lista DE UMA VEZ de forma atômica
                 jogo_encerrado = jogos_ativos.pop(message.channel.id, None)

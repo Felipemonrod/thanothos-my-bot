@@ -19,10 +19,12 @@
         {
             "nome": "Klein Moretti",
             "emojis": [
-                "🎩",
-                "🔮",
-                "💷",
-                "🐙"
+                [
+                    "🎩",
+                    "🔮",
+                    "💷",
+                    "🐙"
+                ]
             ],
             "respostas_aceitas": [
                 "klein",
@@ -32,10 +34,12 @@
         {
             "nome": "Audrey",
             "emojis": [
-                "👑",
-                "💰",
-                "🧠",
-                "🐶"
+                [
+                    "👑",
+                    "💰",
+                    "🧠",
+                    "🐶"
+                ]
             ],
             "respostas_aceitas": [
                 "audrey",
@@ -45,10 +49,12 @@
         {
             "nome": "Derrick Berg",
             "emojis": [
-                "⚡",
-                "🛡",
-                "🌞",
-                "⛪"
+                [
+                    "⚡",
+                    "🛡",
+                    "🌞",
+                    "⛪"
+                ]
             ],
             "respostas_aceitas": [
                 "derrick",
@@ -58,10 +64,12 @@
         {
             "nome": "Alger",
             "emojis": [
-                "🌊",
-                "⚓",
-                "🧔‍♂️",
-                "🌩️"
+                [
+                    "🌊",
+                    "⚓",
+                    "🧔‍♂️",
+                    "🌩️"
+                ]
             ],
             "respostas_aceitas": [
                 "alger",
@@ -71,10 +79,12 @@
         {
             "nome": "Fors",
             "emojis": [
-                "✍️",
-                "📚",
-                "🚪",
-                "😅"
+                [
+                    "✍️",
+                    "📚",
+                    "🚪",
+                    "😅"
+                ]
             ],
             "respostas_aceitas": [
                 "fors",
@@ -84,10 +94,12 @@
         {
             "nome": "Amon",
             "emojis": [
-                "🧐",
-                "🪶",
-                "😈",
-                "🕰️"
+                [
+                    "🧐",
+                    "🪶",
+                    "😈",
+                    "🕰️"
+                ]
             ],
             "respostas_aceitas": [
                 "amon",
@@ -99,10 +111,12 @@
         {
             "nome": "Roselle Gustav",
             "emojis": [
-                "😍",
-                "🇫🇷",
-                "🚽",
-                "📄"
+                [
+                    "😍",
+                    "🇫🇷",
+                    "🚽",
+                    "📄"
+                ]
             ],
             "respostas_aceitas": [
                 "roselle",
@@ -113,10 +127,12 @@
         {
             "nome": "Arrodes",
             "emojis": [
-                "😳",
-                "🛐",
-                "🌩️",
-                "🪞"
+                [
+                    "😳",
+                    "🛐",
+                    "🌩️",
+                    "🪞"
+                ]
             ],
             "respostas_aceitas": [
                 "arrodes",
@@ -128,10 +144,12 @@
         {
             "nome": "Azik Eggers",
             "emojis": [
-                "😴",
-                "🪽",
-                "🧜",
-                "🦴"
+                [
+                    "😴",
+                    "🪽",
+                    "🧜",
+                    "🦴"
+                ]
             ],
             "respostas_aceitas": [
                 "consul da morte",
@@ -142,10 +160,12 @@
         {
             "nome": "Adam",
             "emojis": [
-                "🎭",
-                "☀️",
-                "🪶",
-                "✝️"
+                [
+                    "🎭",
+                    "☀️",
+                    "🪶",
+                    "✝️"
+                ]
             ],
             "respostas_aceitas": [
                 "adam",
@@ -156,10 +176,12 @@
         {
             "nome": "Merlin Hermes",
             "emojis": [
-                "📉",
-                "🧞",
-                "🗺️",
-                "🪄"
+                [
+                    "📉",
+                    "🧞",
+                    "🗺️",
+                    "🪄"
+                ]
             ],
             "respostas_aceitas": [
                 "merlin",
@@ -170,10 +192,12 @@
         {
             "nome": "Frank Lee",
             "emojis": [
-                "☠️",
-                "🧑‍🔬",
-                "🐄",
-                "🍄"
+                [
+                    "☠️",
+                    "🧑‍🔬",
+                    "🐄",
+                    "🍄"
+                ]
             ],
             "respostas_aceitas": [
                 "especialista em venenos",
@@ -186,10 +210,12 @@
         {
             "nome": "Emilyn White",
             "emojis": [
-                "🦇",
-                "🌕",
-                "🩸",
-                "🍷"
+                [
+                    "🦇",
+                    "🌕",
+                    "🩸",
+                    "🍷"
+                ]
             ],
             "respostas_aceitas": [
                 "emelyn",
@@ -200,10 +226,12 @@
         {
             "nome": "Leonard Mitchell",
             "emojis": [
-                "😴",
-                "🗡️",
-                "👁️‍🗨️",
-                "🦉"
+                [
+                    "😴",
+                    "🗡️",
+                    "👁️‍🗨️",
+                    "🦉"
+                ]
             ],
             "respostas_aceitas": [
                 "estrela",
@@ -219,10 +247,12 @@
         {
             "nome": "Will Auceptin",
             "emojis": [
-                "🎰",
-                "🐍",
-                "👶",
-                "🍨"
+                [
+                    "🎰",
+                    "🐍",
+                    "👶",
+                    "🍨"
+                ]
             ],
             "respostas_aceitas": [
                 "will",
@@ -232,10 +262,12 @@
         {
             "nome": "Leodero",
             "emojis": [
-                "🌊",
-                "⚡",
-                "🌪️",
-                "🔱"
+                [
+                    "🌊",
+                    "⚡",
+                    "🌪️",
+                    "🔱"
+                ]
             ],
             "respostas_aceitas": [
                 "leodero",
@@ -247,10 +279,12 @@
         {
             "nome": "Aucuses",
             "emojis": [
-                "☀️",
-                "🔥",
-                "✨",
-                "⛪"
+                [
+                    "☀️",
+                    "🔥",
+                    "✨",
+                    "⛪"
+                ]
             ],
             "respostas_aceitas": [
                 "aucuses",
@@ -262,10 +296,12 @@
         {
             "nome": "Herabergen",
             "emojis": [
-                "📚",
-                "🧠",
-                "👁️",
-                "🦉"
+                [
+                    "📚",
+                    "🧠",
+                    "👁️",
+                    "🦉"
+                ]
             ],
             "respostas_aceitas": [
                 "herabergen",
@@ -278,10 +314,12 @@
         {
             "nome": "Omebella",
             "emojis": [
-                "🌿",
-                "🌾",
-                "🐄",
-                "🌍"
+                [
+                    "🌿",
+                    "🌾",
+                    "🐄",
+                    "🌍"
+                ]
             ],
             "respostas_aceitas": [
                 "omebella",
@@ -291,10 +329,12 @@
         {
             "nome": "Verdadeiro Criador",
             "emojis": [
-                "🩸",
-                "😵‍💫",
-                "👁️‍🗨️",
-                "✝️"
+                [
+                    "🩸",
+                    "😵‍💫",
+                    "👁️‍🗨️",
+                    "✝️"
+                ]
             ],
             "respostas_aceitas": [
                 "grisha",
@@ -307,10 +347,12 @@
         {
             "nome": "Deus da Maquinaria",
             "emojis": [
-                "⚙️",
-                "🤖",
-                "🔧",
-                "🚂"
+                [
+                    "⚙️",
+                    "🤖",
+                    "🔧",
+                    "🚂"
+                ]
             ],
             "respostas_aceitas": [
                 "deus do artesanato",
@@ -323,10 +365,12 @@
         {
             "nome": "Sábio Oculto",
             "emojis": [
-                "📚",
-                "🌀",
-                "👁️",
-                "📜"
+                [
+                    "📚",
+                    "🌀",
+                    "👁️",
+                    "📜"
+                ]
             ],
             "respostas_aceitas": [
                 "buscador do conhecimento",
@@ -338,10 +382,12 @@
         {
             "nome": "Demônia Primordial",
             "emojis": [
-                "💋",
-                "🩸",
-                "🔥",
-                "👑"
+                [
+                    "💋",
+                    "🩸",
+                    "🔥",
+                    "👑"
+                ]
             ],
             "respostas_aceitas": [
                 "cheek",
@@ -355,10 +401,12 @@
         {
             "nome": "Mãe Árvore do Desejo",
             "emojis": [
-                "🌳",
-                "💀",
-                "🕸️",
-                "💋"
+                [
+                    "🌳",
+                    "💀",
+                    "🕸️",
+                    "💋"
+                ]
             ],
             "respostas_aceitas": [
                 "mtod",
@@ -370,10 +418,12 @@
         {
             "nome": "Deusa Mãe da Depravação",
             "emojis": [
-                "🌑",
-                "🩸",
-                "👶",
-                "🐙"
+                [
+                    "🌑",
+                    "🩸",
+                    "👶",
+                    "🐙"
+                ]
             ],
             "respostas_aceitas": [
                 "lua primordial",
@@ -385,7 +435,9 @@
         {
             "nome": "Filho do Caos",
             "emojis": [
-                "🌌👁️🌀⚡"
+                [
+                    "🌌👁️🌀⚡"
+                ]
             ],
             "respostas_aceitas": [
                 "filho do caos",
@@ -397,10 +449,12 @@
         {
             "nome": "Medici",
             "emojis": [
-                "🔥",
-                "⚔️",
-                "👑",
-                "🩸"
+                [
+                    "🔥",
+                    "⚔️",
+                    "👑",
+                    "🩸"
+                ]
             ],
             "respostas_aceitas": [
                 "anjo vermelho",
@@ -411,10 +465,12 @@
         {
             "nome": "Ouroboros",
             "emojis": [
-                "🐍",
-                "♾️",
-                "🔮",
-                "⏳"
+                [
+                    "🐍",
+                    "♾️",
+                    "🔮",
+                    "⏳"
+                ]
             ],
             "respostas_aceitas": [
                 "ouroboros",
