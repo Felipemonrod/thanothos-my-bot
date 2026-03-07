@@ -9,6 +9,7 @@ import os
 DADOS_FILE = 'dados_jogo.json'
 
 dados = {
+    "canais_gerencia": [],
     "canais_permitidos": [],
     "cargos_permitidos": [],
     "personagens": []
@@ -19,6 +20,10 @@ def carregar_dados():
     if os.path.exists(DADOS_FILE):
         with open(DADOS_FILE, 'r', encoding='utf-8') as f:
             dados = json.load(f)
+        # Retrocompatibilidade: garante que a chave existe em JSONs antigos
+        if "canais_gerencia" not in dados:
+            dados["canais_gerencia"] = []
+            salvar_dados()
     else:
         salvar_dados()
 
@@ -122,11 +127,55 @@ async def msg_aviso(ctx, mensagem):
     embed = discord.Embed(description=f"⚠️ {mensagem}", color=0xF1C40F) 
     await ctx.send(embed=embed)
 
+def e_canal_gerencia(ctx):
+    """Retorna True se o comando foi usado em um dos canais de gerência."""
+    return ctx.channel.id in dados["canais_gerencia"]
+
+def msg_canais_gerencia():
+    """Retorna texto com os canais de gerência formatados para exibir no erro."""
+    if dados["canais_gerencia"]:
+        mencoes = ", ".join(f"<#{cid}>" for cid in dados["canais_gerencia"])
+        return f"Este comando só pode ser usado nos canais de gerência: {mencoes}"
+    return "Nenhum canal de gerência configurado! Peça a um admin para usar `#addgerencia <ID>`."
+
+# ================= Comandos de Gerência de Canais Admin =================
+
+@bot.command()
+async def addgerencia(ctx, canal_id: int):
+    """(Admin) Adiciona um canal à lista de canais de gerência."""
+    if not ctx.author.guild_permissions.administrator:
+        await msg_erro(ctx, "Apenas **administradores do servidor** podem configurar canais de gerência.")
+        return
+
+    if canal_id not in dados["canais_gerencia"]:
+        dados["canais_gerencia"].append(canal_id)
+        salvar_dados()
+        await msg_sucesso(ctx, f"Canal <#{canal_id}> adicionado como canal de gerência!")
+    else:
+        await msg_aviso(ctx, "Este canal já é um canal de gerência.")
+
+@bot.command()
+async def rmgerencia(ctx, canal_id: int):
+    """(Admin) Remove um canal da lista de canais de gerência."""
+    if not ctx.author.guild_permissions.administrator:
+        await msg_erro(ctx, "Apenas **administradores do servidor** podem configurar canais de gerência.")
+        return
+
+    if canal_id in dados["canais_gerencia"]:
+        dados["canais_gerencia"].remove(canal_id)
+        salvar_dados()
+        await msg_sucesso(ctx, f"Canal <#{canal_id}> removido dos canais de gerência.")
+    else:
+        await msg_aviso(ctx, "Este canal não está na lista de gerência.")
+
 # ================= Comandos de Gerenciamento =================
 
 @bot.command()
 async def addcanal(ctx, canal_id: int):
     """(Admin) Autoriza um canal a ter o bot funcinando"""
+    if not e_canal_gerencia(ctx):
+        await msg_erro(ctx, msg_canais_gerencia())
+        return
     if not tem_permissao_gerencia(ctx):
         await msg_erro(ctx, "Você não tem permissão para usar este comando.")
         return
@@ -141,6 +190,9 @@ async def addcanal(ctx, canal_id: int):
 @bot.command()
 async def addcargo(ctx, cargo: discord.Role):
     """(Admin) Autoriza um cargo a adicionar personagens e canais"""
+    if not e_canal_gerencia(ctx):
+        await msg_erro(ctx, msg_canais_gerencia())
+        return
     if not ctx.author.guild_permissions.administrator:
         await msg_erro(ctx, "Apenas **administradores do servidor** podem adicionar cargos de gerência.")
         return
@@ -158,6 +210,9 @@ async def addpersonagem(ctx, nome: str, emojis: str, respostas: str):
     (Admin) Adiciona um novo personagem.
     Uso: #addpersonagem "Nome" "🦇, 👨, 🌃" "batman, bruce wayne"
     """
+    if not e_canal_gerencia(ctx):
+        await msg_erro(ctx, msg_canais_gerencia())
+        return
     if not tem_permissao_gerencia(ctx):
         await msg_erro(ctx, "Você não tem permissão para usar este comando.")
         return
@@ -187,6 +242,9 @@ async def addpersonagem(ctx, nome: str, emojis: str, respostas: str):
 @bot.command()
 async def rmcanal(ctx, canal_id: int):
     """(Admin) Remove um canal da lista de permitidos"""
+    if not e_canal_gerencia(ctx):
+        await msg_erro(ctx, msg_canais_gerencia())
+        return
     if not tem_permissao_gerencia(ctx):
         await msg_erro(ctx, "Você não tem permissão para usar este comando.")
         return
@@ -201,6 +259,9 @@ async def rmcanal(ctx, canal_id: int):
 @bot.command()
 async def rmcargo(ctx, cargo: discord.Role):
     """(Admin) Remove a permissão de um cargo"""
+    if not e_canal_gerencia(ctx):
+        await msg_erro(ctx, msg_canais_gerencia())
+        return
     if not ctx.author.guild_permissions.administrator:
         await msg_erro(ctx, "Apenas **administradores do servidor** podem remover cargos de gerência.")
         return
@@ -215,6 +276,9 @@ async def rmcargo(ctx, cargo: discord.Role):
 @bot.command()
 async def rmpersonagem(ctx, *, nome: str):
     """(Admin) Remove um personagem exato pelo nome"""
+    if not e_canal_gerencia(ctx):
+        await msg_erro(ctx, msg_canais_gerencia())
+        return
     if not tem_permissao_gerencia(ctx):
         await msg_erro(ctx, "Você não tem permissão para usar este comando.")
         return
@@ -240,14 +304,369 @@ async def help(ctx):
     await ctx.send("📋 **Comandos disponíveis:**\n"
                 "`#iniciar` - Inicia um novo jogo\n"
                 "`#dica` - Solicita uma dica no jogo ativo\n"
-                "\n⚙️ **Gerenciamento (Admins/Cargos):**\n"
+                "\n⚙️ **Gerência (Admins/Cargos) — só nos canais de gerência:**\n"
                 "`#addcanal <ID>` - Libera um canal\n"
                 "`#rmcanal <ID>` - Bloqueia um canal\n"
                 "`#addcargo @Cargo` - Dá permissão de gerência\n"
                 "`#rmcargo @Cargo` - Tira permissão de gerência\n"
                 "`#addpersonagem \"Nome\" \"emojis\" \"resp, resp2\"` - Cria personagem\n"
                 "`#rmpersonagem Nome exato` - Deleta personagem\n"
+                "`#editemoji` - Edita emojis de um personagem (interativo)\n"
+                "`#listar` - Lista todos os personagens cadastrados\n"
+                "\n🔒 **Administrador do servidor:**\n"
+                "`#addgerencia <ID>` - Define um canal como canal de gerência\n"
+                "`#rmgerencia <ID>` - Remove um canal de gerência\n"
                 "`#help` - Exibe esta mensagem de ajuda")
+
+@bot.command()
+async def listar(ctx):
+    """Lista todos os personagens cadastrados com seus emojis e respostas."""
+    if not e_canal_gerencia(ctx):
+        await msg_erro(ctx, msg_canais_gerencia())
+        return
+    if not tem_permissao_gerencia(ctx):
+        await msg_erro(ctx, "Você não tem permissão para usar este comando.")
+        return
+
+    if not dados["personagens"]:
+        await msg_aviso(ctx, "Nenhum personagem cadastrado ainda! Use `#addpersonagem` para adicionar.")
+        return
+
+    paginas = []
+    linhas = []
+    for i, pers in enumerate(dados["personagens"], 1):
+        emojis = " ".join(pers["emojis"])
+        respostas = ", ".join(pers["respostas_aceitas"])
+        linhas.append(f"**{i}. {pers['nome']}**\n> Emojis: {emojis}\n> Respostas: `{respostas}`")
+        # A cada 10 personagens, cria uma nova página pra não estourar o limite do embed
+        if i % 10 == 0:
+            paginas.append("\n\n".join(linhas))
+            linhas = []
+    if linhas:
+        paginas.append("\n\n".join(linhas))
+
+    for idx, pagina in enumerate(paginas):
+        embed = discord.Embed(
+            title=f"📋 Personagens Cadastrados ({len(dados['personagens'])} total)",
+            description=pagina,
+            color=0x9B59B6
+        )
+        if len(paginas) > 1:
+            embed.set_footer(text=f"Página {idx + 1}/{len(paginas)}")
+        await ctx.send(embed=embed)
+
+# ================= Sistema de Edição de Emojis (Paginado) =================
+
+POR_PAGINA = 10  # Quantos personagens por página no editor
+
+class EditEmojiView(discord.ui.View):
+    """View principal: paginação + dropdown para selecionar personagem."""
+    def __init__(self, autor, pagina=0):
+        super().__init__(timeout=120)
+        self.autor = autor
+        self.pagina = pagina
+        self.total_paginas = max(1, (len(dados["personagens"]) + POR_PAGINA - 1) // POR_PAGINA)
+        self._atualizar_componentes()
+
+    def _atualizar_componentes(self):
+        self.clear_items()
+
+        # --- Dropdown de personagens da página atual ---
+        inicio = self.pagina * POR_PAGINA
+        fim = inicio + POR_PAGINA
+        personagens_pagina = dados["personagens"][inicio:fim]
+
+        opcoes = []
+        for i, pers in enumerate(personagens_pagina, start=inicio + 1):
+            emojis_preview = " ".join(pers["emojis"][:3])
+            label = f"{i}. {pers['nome']}"
+            if len(label) > 100:
+                label = label[:97] + "..."
+            opcoes.append(discord.SelectOption(
+                label=label,
+                description=emojis_preview[:100],
+                value=str(i - 1)  # índice real no array
+            ))
+
+        dropdown = PersonagemSelect(opcoes, self.autor)
+        self.add_item(dropdown)
+
+        # --- Botão Voltar (só aparece se não for a primeira página) ---
+        if self.pagina > 0:
+            btn_voltar = discord.ui.Button(label="◀ Anterior", style=discord.ButtonStyle.secondary)
+            btn_voltar.callback = self._voltar_pagina
+            self.add_item(btn_voltar)
+
+        # --- Botão Avançar (só aparece se não for a última página) ---
+        if self.pagina < self.total_paginas - 1:
+            btn_avancar = discord.ui.Button(label="Próxima ▶", style=discord.ButtonStyle.secondary)
+            btn_avancar.callback = self._avancar_pagina
+            self.add_item(btn_avancar)
+
+        # --- Botão Cancelar ---
+        btn_cancelar = discord.ui.Button(label="✖ Cancelar", style=discord.ButtonStyle.danger)
+        btn_cancelar.callback = self._cancelar
+        self.add_item(btn_cancelar)
+
+    def _gerar_embed(self):
+        inicio = self.pagina * POR_PAGINA
+        fim = inicio + POR_PAGINA
+        personagens_pagina = dados["personagens"][inicio:fim]
+
+        linhas = []
+        for i, pers in enumerate(personagens_pagina, start=inicio + 1):
+            emojis = " ".join(pers["emojis"])
+            linhas.append(f"**{i}.** {pers['nome']}  —  {emojis}")
+
+        embed = discord.Embed(
+            title="✏️ Editar Emojis — Selecione o Personagem",
+            description="\n".join(linhas),
+            color=0xE67E22
+        )
+        embed.set_footer(text=f"Página {self.pagina + 1}/{self.total_paginas} • Selecione no menu abaixo")
+        return embed
+
+    async def _voltar_pagina(self, interaction: discord.Interaction):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+        self.pagina -= 1
+        self._atualizar_componentes()
+        await interaction.response.edit_message(embed=self._gerar_embed(), view=self)
+
+    async def _avancar_pagina(self, interaction: discord.Interaction):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+        self.pagina += 1
+        self._atualizar_componentes()
+        await interaction.response.edit_message(embed=self._gerar_embed(), view=self)
+
+    async def _cancelar(self, interaction: discord.Interaction):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+        embed = discord.Embed(description="❌ Edição cancelada.", color=0xE74C3C)
+        await interaction.response.edit_message(embed=embed, view=None)
+        self.stop()
+
+    async def on_timeout(self):
+        pass  # A mensagem fica, mas os botões expiram silenciosamente
+
+
+class PersonagemSelect(discord.ui.Select):
+    """Dropdown para escolher qual personagem editar."""
+    def __init__(self, opcoes, autor):
+        super().__init__(placeholder="Escolha o personagem para editar...", options=opcoes)
+        self.autor = autor
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+
+        indice = int(self.values[0])
+        pers = dados["personagens"][indice]
+
+        emojis_atuais = " ".join(pers["emojis"])
+        embed = discord.Embed(
+            title=f"✏️ Editando: {pers['nome']}",
+            description=(
+                f"**Emojis atuais:** {emojis_atuais}\n\n"
+                f"Escolha o que deseja fazer:"
+            ),
+            color=0xE67E22
+        )
+
+        view = EdicaoEmojiView(self.autor, indice)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class EdicaoEmojiView(discord.ui.View):
+    """View com opções de edição dos emojis de um personagem específico."""
+    def __init__(self, autor, indice_personagem):
+        super().__init__(timeout=120)
+        self.autor = autor
+        self.indice = indice_personagem
+
+    def _pers(self):
+        return dados["personagens"][self.indice]
+
+    @discord.ui.button(label="🔄 Substituir Todos", style=discord.ButtonStyle.primary)
+    async def substituir_todos(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+
+        pers = self._pers()
+        embed = discord.Embed(
+            title=f"🔄 Substituir emojis de: {pers['nome']}",
+            description=(
+                f"**Emojis atuais:** {' '.join(pers['emojis'])}\n\n"
+                "📝 **Digite os novos emojis separados por vírgula no chat.**\n"
+                "Exemplo: `🦇, 👨, 🌃, 🏙️`\n\n"
+                "⏱️ Você tem **60 segundos** para responder."
+            ),
+            color=0x3498DB
+        )
+        await interaction.response.edit_message(embed=embed, view=None)
+
+        def check(m):
+            return m.author.id == self.autor.id and m.channel.id == interaction.channel.id
+
+        try:
+            msg = await interaction.client.wait_for('message', check=check, timeout=60)
+            novos_emojis = [e.strip() for e in msg.content.split(',') if e.strip()]
+
+            if not novos_emojis:
+                embed_err = discord.Embed(description="❌ Nenhum emoji detectado. Edição cancelada.", color=0xE74C3C)
+                await interaction.channel.send(embed=embed_err)
+                return
+
+            antigos = " ".join(pers["emojis"])
+            pers["emojis"] = novos_emojis
+            salvar_dados()
+
+            embed_ok = discord.Embed(
+                title=f"✅ Emojis atualizados: {pers['nome']}",
+                description=(
+                    f"**Antes:** {antigos}\n"
+                    f"**Agora:** {' '.join(novos_emojis)}"
+                ),
+                color=0x2ECC71
+            )
+            await interaction.channel.send(embed=embed_ok)
+
+        except asyncio.TimeoutError:
+            embed_timeout = discord.Embed(description="⏰ Tempo esgotado! Edição cancelada.", color=0xE74C3C)
+            await interaction.channel.send(embed=embed_timeout)
+
+    @discord.ui.button(label="➕ Adicionar Emoji", style=discord.ButtonStyle.success)
+    async def adicionar_emoji(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+
+        pers = self._pers()
+        embed = discord.Embed(
+            title=f"➕ Adicionar emoji a: {pers['nome']}",
+            description=(
+                f"**Emojis atuais:** {' '.join(pers['emojis'])}\n\n"
+                "📝 **Digite o(s) emoji(s) para adicionar, separados por vírgula.**\n"
+                "Exemplo: `🗡️, 🛡️`\n\n"
+                "⏱️ Você tem **60 segundos** para responder."
+            ),
+            color=0x2ECC71
+        )
+        await interaction.response.edit_message(embed=embed, view=None)
+
+        def check(m):
+            return m.author.id == self.autor.id and m.channel.id == interaction.channel.id
+
+        try:
+            msg = await interaction.client.wait_for('message', check=check, timeout=60)
+            novos = [e.strip() for e in msg.content.split(',') if e.strip()]
+
+            if not novos:
+                embed_err = discord.Embed(description="❌ Nenhum emoji detectado. Operação cancelada.", color=0xE74C3C)
+                await interaction.channel.send(embed=embed_err)
+                return
+
+            pers["emojis"].extend(novos)
+            salvar_dados()
+
+            embed_ok = discord.Embed(
+                title=f"✅ Emojis adicionados: {pers['nome']}",
+                description=f"**Emojis agora:** {' '.join(pers['emojis'])}",
+                color=0x2ECC71
+            )
+            await interaction.channel.send(embed=embed_ok)
+
+        except asyncio.TimeoutError:
+            embed_timeout = discord.Embed(description="⏰ Tempo esgotado! Operação cancelada.", color=0xE74C3C)
+            await interaction.channel.send(embed=embed_timeout)
+
+    @discord.ui.button(label="🗑️ Remover Emoji", style=discord.ButtonStyle.danger)
+    async def remover_emoji(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+
+        pers = self._pers()
+        if len(pers["emojis"]) <= 1:
+            await interaction.response.send_message("O personagem precisa ter pelo menos 1 emoji!", ephemeral=True)
+            return
+
+        emojis_lista = "\n".join(f"`{i+1}.` {e}" for i, e in enumerate(pers["emojis"]))
+        embed = discord.Embed(
+            title=f"🗑️ Remover emoji de: {pers['nome']}",
+            description=(
+                f"**Emojis atuais:**\n{emojis_lista}\n\n"
+                "📝 **Digite o número do emoji que deseja remover.**\n"
+                "⏱️ Você tem **60 segundos** para responder."
+            ),
+            color=0xE74C3C
+        )
+        await interaction.response.edit_message(embed=embed, view=None)
+
+        def check(m):
+            return m.author.id == self.autor.id and m.channel.id == interaction.channel.id
+
+        try:
+            msg = await interaction.client.wait_for('message', check=check, timeout=60)
+
+            if not msg.content.strip().isdigit():
+                embed_err = discord.Embed(description="❌ Digite apenas o número. Operação cancelada.", color=0xE74C3C)
+                await interaction.channel.send(embed=embed_err)
+                return
+
+            numero = int(msg.content.strip())
+            if numero < 1 or numero > len(pers["emojis"]):
+                embed_err = discord.Embed(description=f"❌ Número inválido. Escolha entre 1 e {len(pers['emojis'])}.", color=0xE74C3C)
+                await interaction.channel.send(embed=embed_err)
+                return
+
+            emoji_removido = pers["emojis"].pop(numero - 1)
+            salvar_dados()
+
+            embed_ok = discord.Embed(
+                title=f"✅ Emoji removido: {pers['nome']}",
+                description=(
+                    f"**Removido:** {emoji_removido}\n"
+                    f"**Emojis agora:** {' '.join(pers['emojis'])}"
+                ),
+                color=0x2ECC71
+            )
+            await interaction.channel.send(embed=embed_ok)
+
+        except asyncio.TimeoutError:
+            embed_timeout = discord.Embed(description="⏰ Tempo esgotado! Operação cancelada.", color=0xE74C3C)
+            await interaction.channel.send(embed=embed_timeout)
+
+    @discord.ui.button(label="↩ Voltar", style=discord.ButtonStyle.secondary)
+    async def voltar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+        view = EditEmojiView(self.autor)
+        await interaction.response.edit_message(embed=view._gerar_embed(), view=view)
+
+
+@bot.command()
+async def editemoji(ctx):
+    """(Admin) Edita os emojis de um personagem com interface interativa."""
+    if not e_canal_gerencia(ctx):
+        await msg_erro(ctx, msg_canais_gerencia())
+        return
+    if not tem_permissao_gerencia(ctx):
+        await msg_erro(ctx, "Você não tem permissão para usar este comando.")
+        return
+    if not dados["personagens"]:
+        await msg_aviso(ctx, "Nenhum personagem cadastrado! Use `#addpersonagem` primeiro.")
+        return
+
+    view = EditEmojiView(ctx.author)
+    await ctx.send(embed=view._gerar_embed(), view=view)
 
 # ================= Comandos do Jogo =================
 
