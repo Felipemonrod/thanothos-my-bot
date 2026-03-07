@@ -26,6 +26,14 @@ def carregar_dados():
         if "canais_gerencia" not in dados:
             dados["canais_gerencia"] = []
             salvar_dados()
+        # Retrocompatibilidade: migra emojis de lista simples para lista de rotações
+        migrou = False
+        for pers in dados["personagens"]:
+            if pers["emojis"] and not isinstance(pers["emojis"][0], list):
+                pers["emojis"] = [pers["emojis"]]  # Envolve a lista única em uma rotação
+                migrou = True
+        if migrou:
+            salvar_dados()
     else:
         salvar_dados()
 
@@ -51,24 +59,58 @@ bot.remove_command('help') # Remove o comando de ajuda padrão do discord.py par
 
 jogos_ativos = {}
 
+CHANCE_MIX_RARO = 0.15  # 15% de chance de misturar emojis de rotações diferentes
+
+def escolher_emojis(personagem):
+    """
+    Escolhe quais emojis usar para a rodada.
+    - Se só tem 1 rotação, usa ela.
+    - Se tem várias, sorteia uma. Com 15% de chance, cria um mix raro.
+    """
+    rotacoes = personagem["emojis"]
+
+    if len(rotacoes) == 1:
+        return list(rotacoes[0])  # Cópia para não alterar o original
+
+    # Mix raro: mistura emojis de rotações diferentes e embaralha a ordem
+    if random.random() < CHANCE_MIX_RARO:
+        todos_emojis = []
+        for rot in rotacoes:
+            todos_emojis.extend(rot)
+        # Remove duplicatas mantendo a ordem, depois pega a quantidade da maior rotação
+        vistos = set()
+        unicos = []
+        for e in todos_emojis:
+            if e not in vistos:
+                vistos.add(e)
+                unicos.append(e)
+        tamanho = max(len(r) for r in rotacoes)
+        amostra = random.sample(unicos, min(tamanho, len(unicos)))
+        random.shuffle(amostra)
+        return amostra
+
+    # Caso normal: sorteia uma rotação
+    return list(random.choice(rotacoes))
+
 class JogoEmoji:
-    def __init__(self, bot, canal, personagem):
+    def __init__(self, bot, canal, personagem, emojis_rodada):
         self.bot = bot
         self.canal = canal
         self.personagem = personagem
+        self.emojis = emojis_rodada  # Emojis escolhidos para esta rodada
         self.indice_dica = 1 
         self.tempo_espera = 20 
         self.task_dica = bot.loop.create_task(self.loop_dicas())
         
     async def enviar_dica(self):
-        emojis_atuais = "".join(self.personagem["emojis"][:self.indice_dica])
+        emojis_atuais = "".join(self.emojis[:self.indice_dica])
         embed = discord.Embed(
             title="🎯 Adivinhe o Personagem!",
             description=(
-                f"**Dica {self.indice_dica} de {len(self.personagem['emojis'])}**\n\n"
+                f"**Dica {self.indice_dica} de {len(self.emojis)}**\n\n"
                 f"> ## {emojis_atuais}"
             ),
-            color=0x00FF00 # Verde claro estilizado
+            color=0x00FF00
         )
         embed.set_footer(text="Digite sua resposta no chat! • Use !dica para acelerar")
         await self.canal.send(embed=embed)
@@ -76,7 +118,7 @@ class JogoEmoji:
     async def loop_dicas(self):
         try:
             await self.enviar_dica()
-            while self.indice_dica < len(self.personagem["emojis"]):
+            while self.indice_dica < len(self.emojis):
                 await asyncio.sleep(self.tempo_espera)
                 self.indice_dica += 1
                 await self.enviar_dica()
@@ -267,13 +309,13 @@ async def addpersonagem(ctx, nome: str, emojis: str, respostas: str):
 
     novo_pers = {
         "nome": nome,
-        "emojis": lista_emojis,
+        "emojis": [lista_emojis],  # Primeira rotação
         "respostas_aceitas": lista_respostas
     }
     
     dados["personagens"].append(novo_pers)
     salvar_dados()
-    await msg_sucesso(ctx, f"O personagem **{nome}** foi salvo com sucesso! ({len(lista_emojis)} emojis, {len(lista_respostas)} respostas)")
+    await msg_sucesso(ctx, f"O personagem **{nome}** foi salvo com sucesso! ({len(lista_emojis)} emojis na rotação 1, {len(lista_respostas)} respostas)")
 
 @bot.command()
 async def rmcanal(ctx, canal_id: int):
@@ -421,9 +463,13 @@ async def listar(ctx):
     paginas = []
     linhas = []
     for i, pers in enumerate(dados["personagens"], 1):
-        emojis = " ".join(pers["emojis"])
+        num_rotacoes = len(pers["emojis"])
+        rotacoes_txt = []
+        for idx_r, rot in enumerate(pers["emojis"], 1):
+            rotacoes_txt.append(f">    R{idx_r}: {' '.join(rot)}")
         respostas = ", ".join(pers["respostas_aceitas"])
-        linhas.append(f"**{i}. {pers['nome']}**\n> Emojis: {emojis}\n> Respostas: `{respostas}`")
+        bloco_rotacoes = "\n".join(rotacoes_txt)
+        linhas.append(f"**{i}. {pers['nome']}** ({num_rotacoes} rotações)\n{bloco_rotacoes}\n> Respostas: `{respostas}`")
         # A cada 10 personagens, cria uma nova página pra não estourar o limite do embed
         if i % 10 == 0:
             paginas.append("\n\n".join(linhas))
@@ -464,14 +510,15 @@ class EditEmojiView(discord.ui.View):
 
         opcoes = []
         for i, pers in enumerate(personagens_pagina, start=inicio + 1):
-            emojis_preview = " ".join(pers["emojis"][:3])
+            emojis_preview = " ".join(pers["emojis"][0][:3]) if pers["emojis"] else "?"
+            num_rot = len(pers["emojis"])
             label = f"{i}. {pers['nome']}"
             if len(label) > 100:
                 label = label[:97] + "..."
             opcoes.append(discord.SelectOption(
                 label=label,
-                description=emojis_preview[:100],
-                value=str(i - 1)  # índice real no array
+                description=f"{num_rot} rotações • {emojis_preview}"[:100],
+                value=str(i - 1)
             ))
 
         dropdown = PersonagemSelect(opcoes, self.autor)
@@ -501,8 +548,9 @@ class EditEmojiView(discord.ui.View):
 
         linhas = []
         for i, pers in enumerate(personagens_pagina, start=inicio + 1):
-            emojis = " ".join(pers["emojis"])
-            linhas.append(f"**{i}.** {pers['nome']}  —  {emojis}")
+            rot_preview = " ".join(pers["emojis"][0]) if pers["emojis"] else "?"
+            num_rot = len(pers["emojis"])
+            linhas.append(f"**{i}.** {pers['nome']}  —  R1: {rot_preview}  ({num_rot} rot.)")
 
         embed = discord.Embed(
             title="✏️ Editar Emojis — Selecione o Personagem",
@@ -554,12 +602,15 @@ class PersonagemSelect(discord.ui.Select):
         indice = int(self.values[0])
         pers = dados["personagens"][indice]
 
-        emojis_atuais = " ".join(pers["emojis"])
+        rotacoes_txt = []
+        for idx_r, rot in enumerate(pers["emojis"], 1):
+            rotacoes_txt.append(f"> **R{idx_r}:** {' '.join(rot)}")
         embed = discord.Embed(
             title=f"✏️ Editando: {pers['nome']}",
             description=(
-                f"**Emojis atuais:** {emojis_atuais}\n\n"
-                f"Escolha o que deseja fazer:"
+                f"**Rotações de emojis ({len(pers['emojis'])}):**\n"
+                + "\n".join(rotacoes_txt) +
+                "\n\nEscolha o que deseja fazer:"
             ),
             color=0xE67E22
         )
@@ -578,69 +629,91 @@ class EdicaoEmojiView(discord.ui.View):
     def _pers(self):
         return dados["personagens"][self.indice]
 
-    @discord.ui.button(label="🔄 Substituir Todos", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="🔄 Substituir Rotação", style=discord.ButtonStyle.primary)
     async def substituir_todos(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.autor.id:
             await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
             return
 
         pers = self._pers()
+        num_rot = len(pers["emojis"])
+
+        if num_rot == 1:
+            rotacao_idx = 0
+        else:
+            rotacoes_txt = "\n".join(f"`{i+1}.` {' '.join(r)}" for i, r in enumerate(pers["emojis"]))
+            embed_escolha = discord.Embed(
+                title=f"🔄 Qual rotação substituir? ({pers['nome']})",
+                description=f"{rotacoes_txt}\n\n📝 **Digite o número da rotação.**\n⏱️ 60 segundos.",
+                color=0x3498DB
+            )
+            await interaction.response.edit_message(embed=embed_escolha, view=None)
+
+            def check(m):
+                return m.author.id == self.autor.id and m.channel.id == interaction.channel.id
+            try:
+                msg = await interaction.client.wait_for('message', check=check, timeout=60)
+                if not msg.content.strip().isdigit() or int(msg.content.strip()) < 1 or int(msg.content.strip()) > num_rot:
+                    await interaction.channel.send(embed=discord.Embed(description="❌ Número inválido. Operação cancelada.", color=0xE74C3C))
+                    return
+                rotacao_idx = int(msg.content.strip()) - 1
+            except asyncio.TimeoutError:
+                await interaction.channel.send(embed=discord.Embed(description="⏰ Tempo esgotado!", color=0xE74C3C))
+                return
+
+        antigos = " ".join(pers["emojis"][rotacao_idx])
+
         embed = discord.Embed(
-            title=f"🔄 Substituir emojis de: {pers['nome']}",
+            title=f"🔄 Substituir R{rotacao_idx+1} de: {pers['nome']}",
             description=(
-                f"**Emojis atuais:** {' '.join(pers['emojis'])}\n\n"
-                "📝 **Digite os novos emojis separados por vírgula no chat.**\n"
+                f"**Emojis atuais:** {antigos}\n\n"
+                "📝 **Digite os novos emojis separados por vírgula.**\n"
                 "Exemplo: `🦇, 👨, 🌃, 🏙️`\n\n"
-                "⏱️ Você tem **60 segundos** para responder."
+                "⏱️ Você tem **60 segundos**."
             ),
             color=0x3498DB
         )
-        await interaction.response.edit_message(embed=embed, view=None)
+        if num_rot == 1:
+            await interaction.response.edit_message(embed=embed, view=None)
+        else:
+            await interaction.channel.send(embed=embed)
 
-        def check(m):
+        def check2(m):
             return m.author.id == self.autor.id and m.channel.id == interaction.channel.id
 
         try:
-            msg = await interaction.client.wait_for('message', check=check, timeout=60)
+            msg = await interaction.client.wait_for('message', check=check2, timeout=60)
             novos_emojis = [e.strip() for e in msg.content.split(',') if e.strip()]
 
             if not novos_emojis:
-                embed_err = discord.Embed(description="❌ Nenhum emoji detectado. Edição cancelada.", color=0xE74C3C)
-                await interaction.channel.send(embed=embed_err)
+                await interaction.channel.send(embed=discord.Embed(description="❌ Nenhum emoji detectado. Cancelado.", color=0xE74C3C))
                 return
 
-            antigos = " ".join(pers["emojis"])
-            pers["emojis"] = novos_emojis
+            pers["emojis"][rotacao_idx] = novos_emojis
             salvar_dados()
 
-            embed_ok = discord.Embed(
-                title=f"✅ Emojis atualizados: {pers['nome']}",
-                description=(
-                    f"**Antes:** {antigos}\n"
-                    f"**Agora:** {' '.join(novos_emojis)}"
-                ),
+            await interaction.channel.send(embed=discord.Embed(
+                title=f"✅ R{rotacao_idx+1} atualizada: {pers['nome']}",
+                description=f"**Antes:** {antigos}\n**Agora:** {' '.join(novos_emojis)}",
                 color=0x2ECC71
-            )
-            await interaction.channel.send(embed=embed_ok)
-
+            ))
         except asyncio.TimeoutError:
-            embed_timeout = discord.Embed(description="⏰ Tempo esgotado! Edição cancelada.", color=0xE74C3C)
-            await interaction.channel.send(embed=embed_timeout)
+            await interaction.channel.send(embed=discord.Embed(description="⏰ Tempo esgotado!", color=0xE74C3C))
 
-    @discord.ui.button(label="➕ Adicionar Emoji", style=discord.ButtonStyle.success)
-    async def adicionar_emoji(self, interaction: discord.Interaction, button: discord.ui.Button):
+    @discord.ui.button(label="➕ Nova Rotação", style=discord.ButtonStyle.success)
+    async def adicionar_rotacao(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.autor.id:
             await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
             return
 
         pers = self._pers()
         embed = discord.Embed(
-            title=f"➕ Adicionar emoji a: {pers['nome']}",
+            title=f"➕ Nova rotação para: {pers['nome']}",
             description=(
-                f"**Emojis atuais:** {' '.join(pers['emojis'])}\n\n"
-                "📝 **Digite o(s) emoji(s) para adicionar, separados por vírgula.**\n"
-                "Exemplo: `🗡️, 🛡️`\n\n"
-                "⏱️ Você tem **60 segundos** para responder."
+                f"Este personagem já tem **{len(pers['emojis'])}** rotação(s).\n\n"
+                "📝 **Digite os emojis da nova rotação, separados por vírgula.**\n"
+                "Exemplo: `🗡️, 🛡️, 🎭, 🔥`\n\n"
+                "⏱️ Você tem **60 segundos**."
             ),
             color=0x2ECC71
         )
@@ -654,43 +727,35 @@ class EdicaoEmojiView(discord.ui.View):
             novos = [e.strip() for e in msg.content.split(',') if e.strip()]
 
             if not novos:
-                embed_err = discord.Embed(description="❌ Nenhum emoji detectado. Operação cancelada.", color=0xE74C3C)
-                await interaction.channel.send(embed=embed_err)
+                await interaction.channel.send(embed=discord.Embed(description="❌ Nenhum emoji detectado. Cancelado.", color=0xE74C3C))
                 return
 
-            pers["emojis"].extend(novos)
+            pers["emojis"].append(novos)
             salvar_dados()
 
-            embed_ok = discord.Embed(
-                title=f"✅ Emojis adicionados: {pers['nome']}",
-                description=f"**Emojis agora:** {' '.join(pers['emojis'])}",
+            await interaction.channel.send(embed=discord.Embed(
+                title=f"✅ Rotação {len(pers['emojis'])} adicionada: {pers['nome']}",
+                description=f"**Nova R{len(pers['emojis'])}:** {' '.join(novos)}",
                 color=0x2ECC71
-            )
-            await interaction.channel.send(embed=embed_ok)
-
+            ))
         except asyncio.TimeoutError:
-            embed_timeout = discord.Embed(description="⏰ Tempo esgotado! Operação cancelada.", color=0xE74C3C)
-            await interaction.channel.send(embed=embed_timeout)
+            await interaction.channel.send(embed=discord.Embed(description="⏰ Tempo esgotado!", color=0xE74C3C))
 
-    @discord.ui.button(label="🗑️ Remover Emoji", style=discord.ButtonStyle.danger)
-    async def remover_emoji(self, interaction: discord.Interaction, button: discord.ui.Button):
+    @discord.ui.button(label="🗑️ Remover Rotação", style=discord.ButtonStyle.danger)
+    async def remover_rotacao(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.autor.id:
             await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
             return
 
         pers = self._pers()
         if len(pers["emojis"]) <= 1:
-            await interaction.response.send_message("O personagem precisa ter pelo menos 1 emoji!", ephemeral=True)
+            await interaction.response.send_message("O personagem precisa ter pelo menos 1 rotação!", ephemeral=True)
             return
 
-        emojis_lista = "\n".join(f"`{i+1}.` {e}" for i, e in enumerate(pers["emojis"]))
+        rotacoes_txt = "\n".join(f"`{i+1}.` {' '.join(r)}" for i, r in enumerate(pers["emojis"]))
         embed = discord.Embed(
-            title=f"🗑️ Remover emoji de: {pers['nome']}",
-            description=(
-                f"**Emojis atuais:**\n{emojis_lista}\n\n"
-                "📝 **Digite o número do emoji que deseja remover.**\n"
-                "⏱️ Você tem **60 segundos** para responder."
-            ),
+            title=f"🗑️ Remover rotação de: {pers['nome']}",
+            description=f"**Rotações atuais:**\n{rotacoes_txt}\n\n📝 **Digite o número da rotação a remover.**\n⏱️ 60 segundos.",
             color=0xE74C3C
         )
         await interaction.response.edit_message(embed=embed, view=None)
@@ -700,34 +765,27 @@ class EdicaoEmojiView(discord.ui.View):
 
         try:
             msg = await interaction.client.wait_for('message', check=check, timeout=60)
-
             if not msg.content.strip().isdigit():
-                embed_err = discord.Embed(description="❌ Digite apenas o número. Operação cancelada.", color=0xE74C3C)
-                await interaction.channel.send(embed=embed_err)
+                await interaction.channel.send(embed=discord.Embed(description="❌ Digite apenas o número.", color=0xE74C3C))
+                return
+            num = int(msg.content.strip())
+            if num < 1 or num > len(pers["emojis"]):
+                await interaction.channel.send(embed=discord.Embed(description=f"❌ Número inválido (1-{len(pers['emojis'])}).", color=0xE74C3C))
+                return
+            if len(pers["emojis"]) <= 1:
+                await interaction.channel.send(embed=discord.Embed(description="❌ Não posso remover a única rotação!", color=0xE74C3C))
                 return
 
-            numero = int(msg.content.strip())
-            if numero < 1 or numero > len(pers["emojis"]):
-                embed_err = discord.Embed(description=f"❌ Número inválido. Escolha entre 1 e {len(pers['emojis'])}.", color=0xE74C3C)
-                await interaction.channel.send(embed=embed_err)
-                return
-
-            emoji_removido = pers["emojis"].pop(numero - 1)
+            removida = pers["emojis"].pop(num - 1)
             salvar_dados()
 
-            embed_ok = discord.Embed(
-                title=f"✅ Emoji removido: {pers['nome']}",
-                description=(
-                    f"**Removido:** {emoji_removido}\n"
-                    f"**Emojis agora:** {' '.join(pers['emojis'])}"
-                ),
+            await interaction.channel.send(embed=discord.Embed(
+                title=f"✅ Rotação removida: {pers['nome']}",
+                description=f"**Removida:** {' '.join(removida)}\n**Rotações restantes:** {len(pers['emojis'])}",
                 color=0x2ECC71
-            )
-            await interaction.channel.send(embed=embed_ok)
-
+            ))
         except asyncio.TimeoutError:
-            embed_timeout = discord.Embed(description="⏰ Tempo esgotado! Operação cancelada.", color=0xE74C3C)
-            await interaction.channel.send(embed=embed_timeout)
+            await interaction.channel.send(embed=discord.Embed(description="⏰ Tempo esgotado!", color=0xE74C3C))
 
     @discord.ui.button(label="↩ Voltar", style=discord.ButtonStyle.secondary)
     async def voltar(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -785,8 +843,11 @@ async def iniciar(ctx):
 
     personagem_sorteado = random.choice(opcoes_validas)
     ultimo_personagem = personagem_sorteado["nome"]
+
+    # Escolhe a rotação de emojis (com chance de mix raro)
+    emojis_rodada = escolher_emojis(personagem_sorteado)
     
-    jogo = JogoEmoji(bot, ctx.channel, personagem_sorteado)
+    jogo = JogoEmoji(bot, ctx.channel, personagem_sorteado, emojis_rodada)
     jogos_ativos[ctx.channel.id] = jogo
     
     embed = discord.Embed(
@@ -807,7 +868,7 @@ async def dica(ctx):
 
     jogo = jogos_ativos[ctx.channel.id]
     
-    if jogo.indice_dica >= len(jogo.personagem["emojis"]):
+    if jogo.indice_dica >= len(jogo.emojis):
         await msg_aviso(ctx, "Todas as dicas já foram dadas! Tentem adivinhar no chat.")
         return
 
