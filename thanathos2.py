@@ -4,6 +4,8 @@ import asyncio
 import random
 import json
 import os
+import unicodedata
+import re
 
 # ================= Configurações Iniciais =================
 DADOS_FILE = 'dados_jogo.json'
@@ -97,6 +99,40 @@ def encerrar_jogo(canal_id):
         jogo.task_dica.cancel()
 
 # ====== Verificações ======
+
+def normalizar_texto(texto):
+    """Remove acentos, converte para minúsculo e limpa espaços extras."""
+    texto = texto.lower().strip()
+    # Remove acentos: é→e, ç→c, ã→a, etc.
+    nfkd = unicodedata.normalize('NFKD', texto)
+    return ''.join(c for c in nfkd if not unicodedata.combining(c))
+
+def chute_corresponde(chute, respostas_aceitas):
+    """
+    Verifica se o chute do usuário bate com alguma resposta aceita.
+    - Case insensitive
+    - Ignora acentos
+    - Aceita a resposta mesmo dentro de uma frase
+    """
+    chute_normalizado = normalizar_texto(chute)
+    
+    # Ignora mensagens muito curtas (1 caractere) para evitar falsos positivos
+    if len(chute_normalizado) < 2:
+        return False
+
+    for resposta in respostas_aceitas:
+        resposta_normalizada = normalizar_texto(resposta)
+        # Match exato
+        if chute_normalizado == resposta_normalizada:
+            return True
+        # Match dentro de frase: usa word boundary para não pegar pedaços de palavras
+        # Ex: "eu acho que é o klein" casa com "klein", mas "kleiner" não
+        padrao = r'\b' + re.escape(resposta_normalizada) + r'\b'
+        if re.search(padrao, chute_normalizado):
+            return True
+
+    return False
+
 def e_canal_permitido(ctx):
     if not dados["canais_permitidos"]:
         return True
@@ -741,9 +777,9 @@ async def on_message(message):
     if message.channel.id in jogos_ativos:
         if e_canal_permitido(message): 
             jogo = jogos_ativos[message.channel.id]
-            chute_do_usuario = message.content.lower().strip()
+            chute_do_usuario = message.content
             
-            if chute_do_usuario in jogo.personagem["respostas_aceitas"]:
+            if chute_corresponde(chute_do_usuario, jogo.personagem["respostas_aceitas"]):
                 # Pega o jogo e remove da lista DE UMA VEZ de forma atômica
                 jogo_encerrado = jogos_ativos.pop(message.channel.id, None)
                 
