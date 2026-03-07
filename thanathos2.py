@@ -62,30 +62,32 @@ jogos_ativos = {}
 CHANCE_MIX_RARO = 0.15  # 15% de chance de misturar emojis de rotações diferentes
 CHANCE_AMON = 0.01     # 1% de chance do evento Amon (o Enganador)
 
-# ====== Erros propositais para o modo Amon ======
+# ====== Dados sutis para o modo Amon ======
+# Maioria dos títulos são normais — apenas alguns têm erros BEM sutis
 AMON_TITULOS = [
-    "🎯 Adivnihe o Personagem!",
-    "🎯 Adivineh o Presonagem!",
-    "🎯 Advinhe o Personajem!",
-    "🎯 Adivinhe o Pesonagem!",
-    "🎯 Advinhne o Persongem!",
-    "🎯 Adivinhe o Prsonagem!",
+    "🎯 Adivinhe o Personagem!",
+    "🎯 Adivinhe o Personagem!",
+    "🎯 Adivinhe o Personagem!",
+    "🎯 Adivinhe o Personagem!",
+    "🎯 Adivinhe o Personagen!",    # m→n (bem sutil)
+    "🎯 Adivinhe o Pesonagem!",     # falta o 'r' (sutil)
 ]
 
+# Footers quase todos normais
 AMON_FOOTERS = [
-    "Diigite sua resposta no chat! • Use !dica para acelerar",
-    "Digite sua reposta no chat! • Use !dica para aceelrar",
-    "Digte sua resposta no caht! • Use !dica para acelrar",
-    "Digite sua resposta no chat! • Use !dcia para acelerar",
-    "Digtie sua resposta no chat! • Use !dic para aceelrar",
+    "Digite sua resposta no chat! • Use #dica para acelerar",
+    "Digite sua resposta no chat! • Use #dica para acelerar",
+    "Digite sua resposta no chat! • Use #dica para acelerar",
+    "Digite sua resposta no chat! • Use #dica para acelerar",
+    "Digite sua resposta no chat! • Use #dica para acelarar",   # sutil
 ]
 
 AMON_FRASES_ESCAPE = [
-    "*\"Você realmente achou que eu era tão simples de decifrar? Eu sou **Amon**, o Enganador. Cada pista que você seguiu... fui eu que coloquei lá.\"* 🧐😈",
-    "*\"Pathetíco. Você olhou para as dicas e viu exatamente o que eu queria que você visse. Eu sou **Amon**... e você nunca me pegou.\"* 👁️",
-    "*\"Oh, tão perto... e tão longe. A identidade que você acertou? Eu a roubei há tempos. Eu sou **Amon**, e este rosto nunca foi meu.\"* 🎭",
-    "*\"Você caíu perfeitamente na minha armadilha. Enquanto tentava adivinhar, eu já sabia cada palavra que você ia digitar. Sou **Amon**, o Deus do Engano.\"* 🕳️",
-    "*\"Impressionante... que você caiu. Cada erro nas dicas era um aviso, e mesmo assim você escolheu o caminho errado. Eu sou **Amon**.\"* 🦇",
+    "*\"Você realmente achou que eu era tão simples de decifrar? Cada pista que você seguiu... fui eu que coloquei lá.\"* 🧐",
+    "*\"Você olhou para as dicas e viu exatamente o que eu queria que você visse. Nunca me pegou.\"* 👁️",
+    "*\"Oh, tão perto... e tão longe. A identidade que você acertou? Eu a roubei há tempos. Este rosto nunca foi meu.\"* 🎭",
+    "*\"Você caiu perfeitamente na minha armadilha. Enquanto tentava adivinhar, eu já sabia cada palavra que você ia digitar.\"* 🕳️",
+    "*\"Cada detalhe fora do lugar era um aviso, e mesmo assim você escolheu o caminho errado.\"* 🦇",
 ]
 
 def encontrar_amon():
@@ -173,19 +175,17 @@ class JogoEmoji:
         total_emojis = len(self.emojis)
 
         if self.modo_amon:
-            # Erros propositais: título com typo, contagem errada, footer bugado
+            # Sutileza: título e footer quase sempre normais
             titulo = random.choice(AMON_TITULOS)
             footer = random.choice(AMON_FOOTERS)
-            # Contagem mentirosa: mostra número errado (+1, -1, ou totalmente errado)
-            dica_falsa = self.indice_dica + random.choice([-1, 0, 1, 2])
-            total_falso = total_emojis + random.choice([-1, 0, 1, 2, 3])
-            if dica_falsa < 1:
-                dica_falsa = 1
-            if total_falso < 1:
-                total_falso = total_emojis
+            # Contagem: correta na maioria, ±1 de vez em quando
+            erro_dica = random.choices([0, 0, 0, 0, 1, -1], k=1)[0]
+            erro_total = random.choices([0, 0, 0, 0, 0, 1], k=1)[0]
+            dica_falsa = max(1, self.indice_dica + erro_dica)
+            total_falso = max(1, total_emojis + erro_total)
             texto_dica = f"**Dica {dica_falsa} de {total_falso}**"
-            # Cor levemente diferente (verde com toque estranho) — sutil
-            cor = random.choice([0x00FF00, 0x00FF44, 0x22FF00, 0x00EE11, 0x11FF33])
+            # Cor praticamente idêntica ao verde normal
+            cor = random.choice([0x00FF00, 0x00FF00, 0x00FF00, 0x00FE01, 0x01FF00])
         else:
             titulo = "🎯 Adivinhe o Personagem!"
             footer = "Digite sua resposta no chat! • Use !dica para acelerar"
@@ -214,14 +214,15 @@ class JogoEmoji:
             await asyncio.sleep(self.tempo_espera)
 
             if self.modo_amon:
+                # Não entrega que era Amon — fica misterioso
                 embed_fim = discord.Embed(
-                    title="⏰ Tmpo Esgotado!",
+                    title="⏰ Tempo Esgotado!",
                     description=(
                         f"Ninguém acertou dessa vez...\n"
-                        f"O personagem era: **{self.personagem['nome']}**\n\n"
-                        f"🧐 ...ou será que era? O **Amon** estava se passando por outro esse tempo todo! 😈"
+                        f"O personagem era: **{self.vitima_disfarce['nome'] if self.vitima_disfarce else self.personagem['nome']}**\n\n"
+                        f"...será que era mesmo? 🤔"
                     ),
-                    color=0xFF4500
+                    color=0xFF0000
                 )
             else:
                 embed_fim = discord.Embed(
@@ -546,6 +547,78 @@ async def help(ctx):
 
     await ctx.send(embeds=[embed_jogo, embed_gerencia, embed_admin])
 
+# ================= Sistema de Listagem Paginada =================
+
+POR_PAGINA = 10  # Quantos personagens por página (listar + editor)
+
+class ListarView(discord.ui.View):
+    """View paginada para listar personagens com botões de navegação."""
+    def __init__(self, autor, pagina=0):
+        super().__init__(timeout=120)
+        self.autor = autor
+        self.pagina = pagina
+        self._atualizar_botoes()
+
+    def _construir_paginas(self):
+        paginas = []
+        linhas = []
+        for i, pers in enumerate(dados["personagens"], 1):
+            num_rotacoes = len(pers["emojis"])
+            rotacoes_txt = []
+            for idx_r, rot in enumerate(pers["emojis"], 1):
+                rotacoes_txt.append(f">    R{idx_r}: {' '.join(rot)}")
+            respostas = ", ".join(pers["respostas_aceitas"])
+            bloco_rotacoes = "\n".join(rotacoes_txt)
+            linhas.append(f"**{i}. {pers['nome']}** ({num_rotacoes} rotações)\n{bloco_rotacoes}\n> Respostas: `{respostas}`")
+            if i % POR_PAGINA == 0:
+                paginas.append("\n\n".join(linhas))
+                linhas = []
+        if linhas:
+            paginas.append("\n\n".join(linhas))
+        return paginas
+
+    def gerar_embed(self):
+        paginas = self._construir_paginas()
+        total_paginas = max(1, len(paginas))
+        if self.pagina >= total_paginas:
+            self.pagina = total_paginas - 1
+        conteudo = paginas[self.pagina] if paginas else "Nenhum personagem cadastrado."
+        embed = discord.Embed(
+            title=f"📋 Personagens Cadastrados ({len(dados['personagens'])} total)",
+            description=conteudo,
+            color=0x9B59B6
+        )
+        embed.set_footer(text=f"Página {self.pagina + 1}/{total_paginas}")
+        return embed
+
+    def _atualizar_botoes(self):
+        total_paginas = max(1, (len(dados["personagens"]) + POR_PAGINA - 1) // POR_PAGINA)
+        self.btn_anterior.disabled = (self.pagina <= 0)
+        self.btn_proximo.disabled = (self.pagina >= total_paginas - 1)
+
+    @discord.ui.button(label="◀ Anterior", style=discord.ButtonStyle.secondary)
+    async def btn_anterior(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode navegar.", ephemeral=True)
+            return
+        self.pagina = max(0, self.pagina - 1)
+        self._atualizar_botoes()
+        await interaction.response.edit_message(embed=self.gerar_embed(), view=self)
+
+    @discord.ui.button(label="Próxima ▶", style=discord.ButtonStyle.secondary)
+    async def btn_proximo(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode navegar.", ephemeral=True)
+            return
+        total_paginas = max(1, (len(dados["personagens"]) + POR_PAGINA - 1) // POR_PAGINA)
+        self.pagina = min(total_paginas - 1, self.pagina + 1)
+        self._atualizar_botoes()
+        await interaction.response.edit_message(embed=self.gerar_embed(), view=self)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+
 @bot.command()
 async def listar(ctx):
     """Lista todos os personagens cadastrados com seus emojis e respostas."""
@@ -560,36 +633,10 @@ async def listar(ctx):
         await msg_aviso(ctx, "Nenhum personagem cadastrado ainda! Use `#addpersonagem` para adicionar.")
         return
 
-    paginas = []
-    linhas = []
-    for i, pers in enumerate(dados["personagens"], 1):
-        num_rotacoes = len(pers["emojis"])
-        rotacoes_txt = []
-        for idx_r, rot in enumerate(pers["emojis"], 1):
-            rotacoes_txt.append(f">    R{idx_r}: {' '.join(rot)}")
-        respostas = ", ".join(pers["respostas_aceitas"])
-        bloco_rotacoes = "\n".join(rotacoes_txt)
-        linhas.append(f"**{i}. {pers['nome']}** ({num_rotacoes} rotações)\n{bloco_rotacoes}\n> Respostas: `{respostas}`")
-        # A cada 10 personagens, cria uma nova página pra não estourar o limite do embed
-        if i % 10 == 0:
-            paginas.append("\n\n".join(linhas))
-            linhas = []
-    if linhas:
-        paginas.append("\n\n".join(linhas))
-
-    for idx, pagina in enumerate(paginas):
-        embed = discord.Embed(
-            title=f"📋 Personagens Cadastrados ({len(dados['personagens'])} total)",
-            description=pagina,
-            color=0x9B59B6
-        )
-        if len(paginas) > 1:
-            embed.set_footer(text=f"Página {idx + 1}/{len(paginas)}")
-        await ctx.send(embed=embed)
+    view = ListarView(ctx.author)
+    await ctx.send(embed=view.gerar_embed(), view=view)
 
 # ================= Sistema de Edição de Emojis (Paginado) =================
-
-POR_PAGINA = 10  # Quantos personagens por página no editor
 
 class EditEmojiView(discord.ui.View):
     """View principal: paginação + dropdown para selecionar personagem."""
@@ -1024,7 +1071,7 @@ async def on_message(message):
                         ),
                         color=0x8B0000
                     )
-                    embed_enganado.set_footer(text="O Amon escapou impune... da próxima vez, preste atenção nos erros.")
+                    embed_enganado.set_footer(text="Algo não parecia certo... mas tarde demais.")
                     await message.reply(embed=embed_enganado)
                     return
 
@@ -1041,15 +1088,14 @@ async def on_message(message):
                     jogo_encerrado.task_dica.cancel()
 
                 if jogo_encerrado.modo_amon:
-                    # Vitória especial do Amon!
                     embed_vitoria = discord.Embed(
-                        title="🧐😈 Amon foi Descoberto!",
+                        title="🎉 Temos um Vencedor!",
                         description=(
                             f"Parabéns {message.author.mention}!\n\n"
-                            f"Você percebeu que o **Amon** estava se passando por outro personagem! 🏆\n"
-                            f"Os emojis estavam misturados e as dicas tinham erros... mas você não caiu! 👁️"
+                            f"Você acertou o personagem: **{jogo_encerrado.personagem['nome']}**! 🏆\n"
+                            f"||... e ele estava disfarçado esse tempo todo. Bom olho. 👁️||"
                         ),
-                        color=0x9B30FF
+                        color=0xFFD700
                     )
                 else:
                     embed_vitoria = discord.Embed(
