@@ -60,6 +60,62 @@ bot.remove_command('help') # Remove o comando de ajuda padrão do discord.py par
 jogos_ativos = {}
 
 CHANCE_MIX_RARO = 0.15  # 15% de chance de misturar emojis de rotações diferentes
+CHANCE_AMON = 0.01     # 1% de chance do evento Amon (o Enganador)
+
+# ====== Erros propositais para o modo Amon ======
+AMON_TITULOS = [
+    "🎯 Adivnihe o Personagem!",
+    "🎯 Adivineh o Presonagem!",
+    "🎯 Advinhe o Personajem!",
+    "🎯 Adivinhe o Pesonagem!",
+    "🎯 Advinhne o Persongem!",
+    "🎯 Adivinhe o Prsonagem!",
+]
+
+AMON_FOOTERS = [
+    "Diigite sua resposta no chat! • Use !dica para acelerar",
+    "Digite sua reposta no chat! • Use !dica para aceelrar",
+    "Digte sua resposta no caht! • Use !dica para acelrar",
+    "Digite sua resposta no chat! • Use !dcia para acelerar",
+    "Digtie sua resposta no chat! • Use !dic para aceelrar",
+]
+
+def encontrar_amon():
+    """Procura o personagem Amon na lista de personagens."""
+    for pers in dados["personagens"]:
+        if pers["nome"].lower() == "amon":
+            return pers
+    return None
+
+def gerar_evento_amon(personagem_vitima):
+    """
+    Gera os emojis do evento Amon: pega os emojis de um personagem vítima
+    e injeta 2 emojis do Amon em posições aleatórias.
+    Retorna a lista de emojis manipulados.
+    """
+    amon = encontrar_amon()
+    if not amon:
+        return None
+
+    # Pega emojis da vítima (rotação aleatória)
+    emojis_vitima = list(random.choice(personagem_vitima["emojis"]))
+    
+    # Pega emojis do Amon (rotação aleatória)
+    emojis_amon = list(random.choice(amon["emojis"]))
+    
+    # Seleciona 2 emojis do Amon para injetar
+    amon_injecao = random.sample(emojis_amon, min(2, len(emojis_amon)))
+    
+    # Substitui 2 posições aleatórias dos emojis da vítima
+    if len(emojis_vitima) >= 2:
+        posicoes = random.sample(range(len(emojis_vitima)), 2)
+        for i, pos in enumerate(posicoes):
+            emojis_vitima[pos] = amon_injecao[i % len(amon_injecao)]
+    else:
+        # Se a vítima só tem 1 emoji, adiciona os do Amon
+        emojis_vitima.extend(amon_injecao)
+    
+    return emojis_vitima
 
 def escolher_emojis(personagem):
     """
@@ -93,26 +149,49 @@ def escolher_emojis(personagem):
     return list(random.choice(rotacoes))
 
 class JogoEmoji:
-    def __init__(self, bot, canal, personagem, emojis_rodada):
+    def __init__(self, bot, canal, personagem, emojis_rodada, modo_amon=False):
         self.bot = bot
         self.canal = canal
         self.personagem = personagem
-        self.emojis = emojis_rodada  # Emojis escolhidos para esta rodada
+        self.emojis = emojis_rodada
+        self.modo_amon = modo_amon  # Se True, o Amon está se passando por outro
         self.indice_dica = 1 
         self.tempo_espera = 20 
         self.task_dica = bot.loop.create_task(self.loop_dicas())
         
     async def enviar_dica(self):
         emojis_atuais = "".join(self.emojis[:self.indice_dica])
+        total_emojis = len(self.emojis)
+
+        if self.modo_amon:
+            # Erros propositais: título com typo, contagem errada, footer bugado
+            titulo = random.choice(AMON_TITULOS)
+            footer = random.choice(AMON_FOOTERS)
+            # Contagem mentirosa: mostra número errado (+1, -1, ou totalmente errado)
+            dica_falsa = self.indice_dica + random.choice([-1, 0, 1, 2])
+            total_falso = total_emojis + random.choice([-1, 0, 1, 2, 3])
+            if dica_falsa < 1:
+                dica_falsa = 1
+            if total_falso < 1:
+                total_falso = total_emojis
+            texto_dica = f"**Dica {dica_falsa} de {total_falso}**"
+            # Cor levemente diferente (verde com toque estranho) — sutil
+            cor = random.choice([0x00FF00, 0x00FF44, 0x22FF00, 0x00EE11, 0x11FF33])
+        else:
+            titulo = "🎯 Adivinhe o Personagem!"
+            footer = "Digite sua resposta no chat! • Use !dica para acelerar"
+            texto_dica = f"**Dica {self.indice_dica} de {total_emojis}**"
+            cor = 0x00FF00
+
         embed = discord.Embed(
-            title="🎯 Adivinhe o Personagem!",
+            title=titulo,
             description=(
-                f"**Dica {self.indice_dica} de {len(self.emojis)}**\n\n"
+                f"{texto_dica}\n\n"
                 f"> ## {emojis_atuais}"
             ),
-            color=0x00FF00
+            color=cor
         )
-        embed.set_footer(text="Digite sua resposta no chat! • Use !dica para acelerar")
+        embed.set_footer(text=footer)
         await self.canal.send(embed=embed)
 
     async def loop_dicas(self):
@@ -124,11 +203,23 @@ class JogoEmoji:
                 await self.enviar_dica()
             
             await asyncio.sleep(self.tempo_espera)
-            embed_fim = discord.Embed(
-                title="⏰ Tempo Esgotado!",
-                description=f"Ninguém acertou dessa vez...\nO personagem era: **{self.personagem['nome']}**",
-                color=0xFF0000
-            )
+
+            if self.modo_amon:
+                embed_fim = discord.Embed(
+                    title="⏰ Tmpo Esgotado!",
+                    description=(
+                        f"Ninguém acertou dessa vez...\n"
+                        f"O personagem era: **{self.personagem['nome']}**\n\n"
+                        f"🧐 ...ou será que era? O **Amon** estava se passando por outro esse tempo todo! 😈"
+                    ),
+                    color=0xFF4500
+                )
+            else:
+                embed_fim = discord.Embed(
+                    title="⏰ Tempo Esgotado!",
+                    description=f"Ninguém acertou dessa vez...\nO personagem era: **{self.personagem['nome']}**",
+                    color=0xFF0000
+                )
             await self.canal.send(embed=embed_fim)
             encerrar_jogo(self.canal.id)
             
@@ -844,16 +935,28 @@ async def iniciar(ctx):
     personagem_sorteado = random.choice(opcoes_validas)
     ultimo_personagem = personagem_sorteado["nome"]
 
-    # Escolhe a rotação de emojis (com chance de mix raro)
-    emojis_rodada = escolher_emojis(personagem_sorteado)
+    # ====== Evento Amon (1% de chance) ======
+    amon = encontrar_amon()
+    modo_amon = False
+    if amon and personagem_sorteado["nome"].lower() != "amon" and random.random() < CHANCE_AMON:
+        # Amon se disfarça! Pega emojis da vítima + injeta os do Amon
+        emojis_rodada = gerar_evento_amon(personagem_sorteado)
+        if emojis_rodada:
+            modo_amon = True
+            # O personagem "real" pra fins de resposta é o Amon
+            personagem_sorteado = amon
     
-    jogo = JogoEmoji(bot, ctx.channel, personagem_sorteado, emojis_rodada)
+    if not modo_amon:
+        # Escolhe a rotação de emojis normalmente (com chance de mix raro)
+        emojis_rodada = escolher_emojis(personagem_sorteado)
+    
+    jogo = JogoEmoji(bot, ctx.channel, personagem_sorteado, emojis_rodada, modo_amon=modo_amon)
     jogos_ativos[ctx.channel.id] = jogo
     
     embed = discord.Embed(
         title="🎮 O Jogo Começou!",
         description="Um novo personagem foi sorteado. Prepare-se para as dicas!",
-        color=0x3498DB # Azul bonito
+        color=0x3498DB
     )
     await ctx.send(embed=embed)
 
@@ -902,14 +1005,26 @@ async def on_message(message):
                 if not jogo_encerrado.task_dica.done():
                     jogo_encerrado.task_dica.cancel()
 
-                embed_vitoria = discord.Embed(
-                    title="🎉 Temos um Vencedor!",
-                    description=(
-                        f"Parabéns {message.author.mention}!\n\n"
-                        f"Você acertou o personagem: **{jogo_encerrado.personagem['nome']}**! 🏆"
-                    ),
-                    color=0xFFD700 
-                )
+                if jogo_encerrado.modo_amon:
+                    # Vitória especial do Amon!
+                    embed_vitoria = discord.Embed(
+                        title="🧐😈 Amon foi Descoberto!",
+                        description=(
+                            f"Parabéns {message.author.mention}!\n\n"
+                            f"Você percebeu que o **Amon** estava se passando por outro personagem! 🏆\n"
+                            f"Os emojis estavam misturados e as dicas tinham erros... mas você não caiu! 👁️"
+                        ),
+                        color=0x9B30FF
+                    )
+                else:
+                    embed_vitoria = discord.Embed(
+                        title="🎉 Temos um Vencedor!",
+                        description=(
+                            f"Parabéns {message.author.mention}!\n\n"
+                            f"Você acertou o personagem: **{jogo_encerrado.personagem['nome']}**! 🏆"
+                        ),
+                        color=0xFFD700 
+                    )
                 await message.reply(embed=embed_vitoria)
                 return
 
