@@ -337,22 +337,72 @@ async def rmpersonagem(ctx, *, nome: str):
 @bot.command()
 async def help(ctx):
     """Exibe a lista de comandos disponíveis."""
-    await ctx.send("📋 **Comandos disponíveis:**\n"
-                "`#iniciar` - Inicia um novo jogo\n"
-                "`#dica` - Solicita uma dica no jogo ativo\n"
-                "\n⚙️ **Gerência (Admins/Cargos) — só nos canais de gerência:**\n"
-                "`#addcanal <ID>` - Libera um canal\n"
-                "`#rmcanal <ID>` - Bloqueia um canal\n"
-                "`#addcargo @Cargo` - Dá permissão de gerência\n"
-                "`#rmcargo @Cargo` - Tira permissão de gerência\n"
-                "`#addpersonagem \"Nome\" \"emojis\" \"resp, resp2\"` - Cria personagem\n"
-                "`#rmpersonagem Nome exato` - Deleta personagem\n"
-                "`#editemoji` - Edita emojis de um personagem (interativo)\n"
-                "`#listar` - Lista todos os personagens cadastrados\n"
-                "\n🔒 **Administrador do servidor:**\n"
-                "`#addgerencia <ID>` - Define um canal como canal de gerência\n"
-                "`#rmgerencia <ID>` - Remove um canal de gerência\n"
-                "`#help` - Exibe esta mensagem de ajuda")
+
+    # --- Embed 1: Comandos do Jogo ---
+    embed_jogo = discord.Embed(
+        title="🎮 Thanathos Bot — Comandos",
+        description="Bem-vindo ao jogo de adivinhar personagens por emojis!",
+        color=0x3498DB
+    )
+    embed_jogo.add_field(
+        name="🎯 Jogo",
+        value=(
+            "> `#iniciar` — Inicia um novo desafio\n"
+            "> `#dica` — Pula o timer e revela a próxima dica"
+        ),
+        inline=False
+    )
+
+    # --- Embed 2: Gerência ---
+    embed_gerencia = discord.Embed(
+        title="⚙️ Gerenciamento",
+        description="*Disponível apenas nos canais de gerência, para admins e cargos autorizados.*",
+        color=0xE67E22
+    )
+    embed_gerencia.add_field(
+        name="📝 Personagens",
+        value=(
+            "> `#addpersonagem \"Nome\" \"emojis\" \"respostas\"`\n"
+            "> `#rmpersonagem Nome exato`\n"
+            "> `#editemoji` — Editor interativo de emojis\n"
+            "> `#listar` — Lista todos os personagens"
+        ),
+        inline=False
+    )
+    embed_gerencia.add_field(
+        name="📺 Canais",
+        value=(
+            "> `#addcanal <ID>` — Libera canal para jogar\n"
+            "> `#rmcanal <ID>` — Bloqueia canal"
+        ),
+        inline=True
+    )
+    embed_gerencia.add_field(
+        name="👥 Cargos",
+        value=(
+            "> `#addcargo @Cargo` — Dá permissão\n"
+            "> `#rmcargo @Cargo` — Remove permissão"
+        ),
+        inline=True
+    )
+
+    # --- Embed 3: Administrador ---
+    embed_admin = discord.Embed(
+        title="🔒 Administrador do Servidor",
+        description="*Comandos exclusivos para administradores. Funcionam em qualquer canal.*",
+        color=0xE74C3C
+    )
+    embed_admin.add_field(
+        name="🛡️ Canais de Gerência",
+        value=(
+            "> `#addgerencia <ID>` — Define canal de gerência\n"
+            "> `#rmgerencia <ID>` — Remove canal de gerência"
+        ),
+        inline=False
+    )
+    embed_admin.set_footer(text="Prefixo: #  •  Thanathos Bot")
+
+    await ctx.send(embeds=[embed_jogo, embed_gerencia, embed_admin])
 
 @bot.command()
 async def listar(ctx):
