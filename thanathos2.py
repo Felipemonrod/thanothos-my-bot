@@ -59,6 +59,32 @@ bot.remove_command('help') # Remove o comando de ajuda padrão do discord.py par
 
 jogos_ativos = {}
 
+# ====== Handler de erros de comandos ======
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        embed = discord.Embed(
+            description=f"⚠️ Faltou argumento: **{error.param.name}**\nUse `#help` para ver como usar o comando.",
+            color=0xF1C40F
+        )
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.CommandNotFound):
+        pass  # Ignora comandos inexistentes
+    elif isinstance(error, commands.BadArgument):
+        embed = discord.Embed(
+            description="❌ Argumento inválido. Verifique o formato do comando.",
+            color=0xE74C3C
+        )
+        await ctx.send(embed=embed)
+    else:
+        # Erro inesperado: mostra no Discord e no console
+        print(f"❌ Erro no comando #{ctx.command}: {error}")
+        embed = discord.Embed(
+            description="❌ Ocorreu um erro ao executar o comando.",
+            color=0xE74C3C
+        )
+        await ctx.send(embed=embed)
+
 CHANCE_MIX_RARO = 0.15  # 15% de chance de misturar emojis de rotações diferentes
 CHANCE_AMON = 0.01     # 1% de chance do evento Amon (o Enganador)
 
@@ -1124,7 +1150,7 @@ class SearchDropdown(discord.ui.Select):
 
 
 @bot.command()
-async def search(ctx, *, nome: str):
+async def search(ctx, *, nome: str = None):
     """(Admin) Busca um personagem por nome para editar ou deletar.
     Uso: #search klein
     """
@@ -1133,6 +1159,10 @@ async def search(ctx, *, nome: str):
         return
     if not tem_permissao_gerencia(ctx):
         await msg_erro(ctx, "Você não tem permissão para usar este comando.")
+        return
+
+    if not nome or not nome.strip():
+        await msg_aviso(ctx, "Digite o nome do personagem para buscar!\nUso: `#search Klein`")
         return
 
     if not dados["personagens"]:
