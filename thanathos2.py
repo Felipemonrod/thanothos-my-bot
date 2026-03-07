@@ -507,6 +507,7 @@ async def help(ctx):
             "> `#addpersonagem \"Nome\" \"emojis\" \"respostas\"`\n"
             "> `#rmpersonagem Nome exato`\n"
             "> `#editemoji` — Editor interativo de emojis\n"
+            "> `#search Nome` — Busca personagem (editar/deletar)\n"
             "> `#listar` — Lista todos os personagens"
         ),
         inline=False
@@ -548,7 +549,7 @@ async def help(ctx):
 
 # ================= Sistema de Listagem Paginada =================
 
-POR_PAGINA = 10  # Quantos personagens por página (listar + editor)
+POR_PAGINA = 5  # Quantos personagens por página (listar + editor)
 
 class ListarView(discord.ui.View):
     """View paginada para listar personagens com botões de navegação."""
@@ -957,6 +958,229 @@ async def editemoji(ctx):
 
     view = EditEmojiView(ctx.author)
     await ctx.send(embed=view._gerar_embed(), view=view)
+
+# ================= Sistema de Busca de Personagens =================
+
+class SearchResultView(discord.ui.View):
+    """View exibida ao encontrar um personagem: mostra detalhes + botões Editar/Deletar."""
+    def __init__(self, autor, indice_personagem):
+        super().__init__(timeout=120)
+        self.autor = autor
+        self.indice = indice_personagem
+
+    def _pers(self):
+        return dados["personagens"][self.indice]
+
+    def _gerar_embed(self):
+        pers = self._pers()
+        rotacoes_txt = []
+        for idx_r, rot in enumerate(pers["emojis"], 1):
+            rotacoes_txt.append(f"> **R{idx_r}:** {' '.join(rot)}")
+        respostas = ", ".join(pers["respostas_aceitas"])
+        embed = discord.Embed(
+            title=f"🔍 {pers['nome']}",
+            description=(
+                f"**Rotações de emojis ({len(pers['emojis'])}):**\n"
+                + "\n".join(rotacoes_txt) +
+                f"\n\n**Respostas aceitas:** `{respostas}`\n\n"
+                "Escolha o que deseja fazer:"
+            ),
+            color=0x9B59B6
+        )
+        return embed
+
+    @discord.ui.button(label="✏️ Editar Emojis", style=discord.ButtonStyle.primary)
+    async def editar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+        view = EdicaoEmojiView(self.autor, self.indice)
+        pers = self._pers()
+        rotacoes_txt = []
+        for idx_r, rot in enumerate(pers["emojis"], 1):
+            rotacoes_txt.append(f"> **R{idx_r}:** {' '.join(rot)}")
+        embed = discord.Embed(
+            title=f"✏️ Editando: {pers['nome']}",
+            description=(
+                f"**Rotações de emojis ({len(pers['emojis'])}):**\n"
+                + "\n".join(rotacoes_txt) +
+                "\n\nEscolha o que deseja fazer:"
+            ),
+            color=0xE67E22
+        )
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label="🗑️ Deletar", style=discord.ButtonStyle.danger)
+    async def deletar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+        pers = self._pers()
+        view = ConfirmarDeleteView(self.autor, self.indice)
+        embed = discord.Embed(
+            title=f"⚠️ Confirmar exclusão",
+            description=(
+                f"Tem certeza que deseja **deletar permanentemente** o personagem **{pers['nome']}**?\n\n"
+                f"Esta ação não pode ser desfeita!"
+            ),
+            color=0xE74C3C
+        )
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label="↩ Voltar", style=discord.ButtonStyle.secondary)
+    async def voltar_busca(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+        embed = discord.Embed(
+            title="🔍 Buscar Personagem",
+            description="Busca encerrada.",
+            color=0x95A5A6
+        )
+        await interaction.response.edit_message(embed=embed, view=None)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+
+
+class ConfirmarDeleteView(discord.ui.View):
+    """View de confirmação para deletar personagem."""
+    def __init__(self, autor, indice_personagem):
+        super().__init__(timeout=30)
+        self.autor = autor
+        self.indice = indice_personagem
+
+    @discord.ui.button(label="✅ Sim, deletar", style=discord.ButtonStyle.danger)
+    async def confirmar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+        if self.indice >= len(dados["personagens"]):
+            await interaction.response.edit_message(
+                embed=discord.Embed(description="❌ Personagem já foi removido.", color=0xE74C3C), view=None)
+            return
+        pers = dados["personagens"].pop(self.indice)
+        salvar_dados()
+        embed = discord.Embed(
+            title="🗑️ Personagem Removido",
+            description=f"O personagem **{pers['nome']}** foi deletado permanentemente.",
+            color=0xE74C3C
+        )
+        await interaction.response.edit_message(embed=embed, view=None)
+
+    @discord.ui.button(label="❌ Cancelar", style=discord.ButtonStyle.secondary)
+    async def cancelar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+        # Volta pra tela do personagem
+        view = SearchResultView(self.autor, self.indice)
+        await interaction.response.edit_message(embed=view._gerar_embed(), view=view)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+
+
+class SearchSelectView(discord.ui.View):
+    """Dropdown para escolher entre múltiplos resultados de busca."""
+    def __init__(self, autor, resultados):
+        super().__init__(timeout=60)
+        self.autor = autor
+        # resultados = lista de (indice_global, personagem)
+        opcoes = []
+        for idx_global, pers in resultados[:25]:  # Discord limita a 25 opções
+            emojis_preview = " ".join(pers["emojis"][0][:3]) if pers["emojis"] else "?"
+            label = pers["nome"]
+            if len(label) > 100:
+                label = label[:97] + "..."
+            opcoes.append(discord.SelectOption(
+                label=label,
+                description=f"{len(pers['emojis'])} rotações • {emojis_preview}"[:100],
+                value=str(idx_global)
+            ))
+        dropdown = SearchDropdown(opcoes, self.autor)
+        self.add_item(dropdown)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+
+
+class SearchDropdown(discord.ui.Select):
+    """Dropdown de seleção dos resultados de busca."""
+    def __init__(self, opcoes, autor):
+        super().__init__(placeholder="Selecione o personagem...", options=opcoes)
+        self.autor = autor
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Só quem usou o comando pode interagir.", ephemeral=True)
+            return
+        indice = int(self.values[0])
+        view = SearchResultView(self.autor, indice)
+        await interaction.response.edit_message(embed=view._gerar_embed(), view=view)
+
+
+@bot.command()
+async def search(ctx, *, nome: str):
+    """(Admin) Busca um personagem por nome para editar ou deletar.
+    Uso: #search klein
+    """
+    if not e_canal_gerencia(ctx):
+        await msg_erro(ctx, msg_canais_gerencia())
+        return
+    if not tem_permissao_gerencia(ctx):
+        await msg_erro(ctx, "Você não tem permissão para usar este comando.")
+        return
+
+    if not dados["personagens"]:
+        await msg_aviso(ctx, "Nenhum personagem cadastrado ainda!")
+        return
+
+    busca = normalizar_texto(nome)
+
+    # Busca: match exato primeiro, depois parcial
+    resultados = []
+    for i, pers in enumerate(dados["personagens"]):
+        nome_normalizado = normalizar_texto(pers["nome"])
+        if busca == nome_normalizado:
+            # Match exato — vai direto
+            view = SearchResultView(ctx.author, i)
+            await ctx.send(embed=view._gerar_embed(), view=view)
+            return
+        if busca in nome_normalizado or nome_normalizado in busca:
+            resultados.append((i, pers))
+
+    # Tenta match por palavra (ex: "klein" encontra "Klein Moretti")
+    if not resultados:
+        padrao = r'\b' + re.escape(busca) + r'\b'
+        for i, pers in enumerate(dados["personagens"]):
+            nome_normalizado = normalizar_texto(pers["nome"])
+            if re.search(padrao, nome_normalizado):
+                resultados.append((i, pers))
+
+    if not resultados:
+        await msg_erro(ctx, f"Nenhum personagem encontrado com **{nome}**.")
+        return
+
+    if len(resultados) == 1:
+        # Só um resultado — vai direto
+        idx_global = resultados[0][0]
+        view = SearchResultView(ctx.author, idx_global)
+        await ctx.send(embed=view._gerar_embed(), view=view)
+        return
+
+    # Múltiplos resultados — mostra dropdown
+    nomes_lista = "\n".join(f"**{i+1}.** {pers['nome']}" for i, (_, pers) in enumerate(resultados))
+    embed = discord.Embed(
+        title=f"🔍 Resultados para \"{nome}\"",
+        description=f"Encontrei **{len(resultados)}** personagens:\n\n{nomes_lista}\n\nSelecione no menu abaixo:",
+        color=0x9B59B6
+    )
+    view = SearchSelectView(ctx.author, resultados)
+    await ctx.send(embed=embed, view=view)
 
 # ================= Comandos do Jogo =================
 
