@@ -83,12 +83,12 @@ AMON_FOOTERS = [
 ]
 
 AMON_FRASES_ESCAPE = [
-    "*\"Você realmente achou que eu era tão simples de decifrar? Cada pista que você seguiu... fui eu que coloquei lá.\"* 🧐",
-    "*\"Você olhou para as dicas e viu exatamente o que eu queria que você visse. Nunca me pegou.\"* 👁️",
-    "*\"Oh, tão perto... e tão longe. A identidade que você acertou? Eu a roubei há tempos. Este rosto nunca foi meu.\"* 🎭",
-    "*\"Você caiu perfeitamente na minha armadilha. Enquanto tentava adivinhar, eu já sabia cada palavra que você ia digitar.\"* 🕳️",
-    "*\"Cada detalhe fora do lugar era um aviso, e mesmo assim você escolheu o caminho errado.\"* 🦇",
+    "*\"Você realmente achou que eu era tão simples de decifrar? Eu sou **Amon**, o Enganador. Cada pista que você seguiu... fui eu que coloquei lá.\"* 🧐😈",
+    "*\"Pathético. Você olhou para as dicas e viu exatamente o que eu queria que você visse. Eu sou **Amon**... e você nunca me pegou.\"* 👁️",
+    "*\"Oh, tão perto... e tão longe. A identidade que você acertou? Eu a roubei há tempos. Eu sou **Amon**, e este rosto nunca foi meu.\"* 🎭",
+    "*\"Impressionante... que você caiu. Cada erro nas dicas era um aviso, e mesmo assim você escolheu o caminho errado. Eu sou **Amon**.\"* 🦇",
 ]
+CHANCE_FRASE_AMON = 0.35  # 35% de chance da frase dramática aparecer (senão fica genérica)
 
 def encontrar_amon():
     """Procura o personagem Amon na lista de personagens."""
@@ -214,15 +214,14 @@ class JogoEmoji:
             await asyncio.sleep(self.tempo_espera)
 
             if self.modo_amon:
-                # Não entrega que era Amon — fica misterioso
                 embed_fim = discord.Embed(
                     title="⏰ Tempo Esgotado!",
                     description=(
                         f"Ninguém acertou dessa vez...\n"
                         f"O personagem era: **{self.vitima_disfarce['nome'] if self.vitima_disfarce else self.personagem['nome']}**\n\n"
-                        f"...será que era mesmo? 🤔"
+                        f"||🧐 ...ou será que era? O **Amon** estava se passando por outro esse tempo todo! 😈||"
                     ),
-                    color=0xFF0000
+                    color=0xFF4500
                 )
             else:
                 embed_fim = discord.Embed(
@@ -1019,6 +1018,51 @@ async def iniciar(ctx):
     await ctx.send(embed=embed)
 
 @bot.command()
+async def call_amon(ctx):
+    """(Teste) Força o evento Amon para testar o sistema."""
+    if not e_canal_gerencia(ctx):
+        await msg_erro(ctx, msg_canais_gerencia())
+        return
+    if not tem_permissao_gerencia(ctx):
+        await msg_erro(ctx, "Você não tem permissão para usar este comando.")
+        return
+
+    if ctx.channel.id in jogos_ativos:
+        await msg_aviso(ctx, "Já existe um jogo rolando neste canal! Encerre ou espere acabar.")
+        return
+
+    amon = encontrar_amon()
+    if not amon:
+        await msg_erro(ctx, "O personagem **Amon** não está cadastrado! Adicione-o com `#addpersonagem`.")
+        return
+
+    # Escolhe uma vítima aleatória (qualquer um que não seja o Amon)
+    vitimas = [p for p in dados["personagens"] if p["nome"].lower() != "amon"]
+    if not vitimas:
+        await msg_erro(ctx, "Não há outros personagens para o Amon se disfarçar!")
+        return
+
+    vitima = random.choice(vitimas)
+    emojis_rodada = gerar_evento_amon(vitima)
+    if not emojis_rodada:
+        await msg_erro(ctx, "Erro ao gerar evento Amon. Verifique os emojis do Amon e da vítima.")
+        return
+
+    jogo = JogoEmoji(bot, ctx.channel, amon, emojis_rodada,
+                     modo_amon=True, vitima_disfarce=vitima)
+    jogos_ativos[ctx.channel.id] = jogo
+
+    embed = discord.Embed(
+        title="🎮 O Jogo Começou!",
+        description=(
+            "Um novo personagem foi sorteado. Prepare-se para as dicas!\n"
+            f"||🔧 **TESTE AMON** — vítima: {vitima['nome']}||"
+        ),
+        color=0x3498DB
+    )
+    await ctx.send(embed=embed)
+
+@bot.command()
 async def dica(ctx):
     if not e_canal_permitido(ctx):
         return
@@ -1061,17 +1105,20 @@ async def on_message(message):
                     if not jogo_encerrado.task_dica.done():
                         jogo_encerrado.task_dica.cancel()
 
-                    frase = random.choice(AMON_FRASES_ESCAPE)
+                    # 35% de chance de frase dramática, senão genérica
+                    if random.random() < CHANCE_FRASE_AMON:
+                        frase = f"\n\n||{random.choice(AMON_FRASES_ESCAPE)}||"
+                    else:
+                        frase = ""
                     embed_enganado = discord.Embed(
                         title="🎭 Você foi Enganado!",
                         description=(
                             f"{message.author.mention}, você respondeu **{jogo_encerrado.vitima_disfarce['nome']}**...\n\n"
-                            f"Mas o personagem real era o **Amon**! 😈\n\n"
-                            f"{frase}"
+                            f"||Mas o personagem real era o **Amon**! 😈||{frase}"
                         ),
                         color=0x8B0000
                     )
-                    embed_enganado.set_footer(text="Algo não parecia certo... mas tarde demais.")
+                    embed_enganado.set_footer(text="O Amon escapou impune... da próxima vez, preste atenção nos detalhes.")
                     await message.reply(embed=embed_enganado)
                     return
 
@@ -1089,13 +1136,13 @@ async def on_message(message):
 
                 if jogo_encerrado.modo_amon:
                     embed_vitoria = discord.Embed(
-                        title="🎉 Temos um Vencedor!",
+                        title="🧐😈 Amon foi Descoberto!",
                         description=(
                             f"Parabéns {message.author.mention}!\n\n"
-                            f"Você acertou o personagem: **{jogo_encerrado.personagem['nome']}**! 🏆\n"
-                            f"||... e ele estava disfarçado esse tempo todo. Bom olho. 👁️||"
+                            f"Você percebeu que o **Amon** estava se passando por outro personagem! 🏆\n"
+                            f"||Os emojis estavam misturados e as dicas tinham erros... mas você não caiu! 👁️||"
                         ),
-                        color=0xFFD700
+                        color=0x9B30FF
                     )
                 else:
                     embed_vitoria = discord.Embed(
