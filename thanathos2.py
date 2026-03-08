@@ -90,6 +90,248 @@ def gerar_texto_streak(streak):
     else:
         return f"👑💥⚡🔥 **COMBO x{streak}!!** Dominação absoluta!"
 
+# ================= Sistema de Confronto (Duelo 1v1) =================
+
+confrontos_ativos = {}  # { canal_id: Confronto }
+
+class AceitarConfrontoView(discord.ui.View):
+    """Botões para aceitar ou recusar um desafio de confronto."""
+    def __init__(self, desafiante, desafiado):
+        super().__init__(timeout=60)
+        self.desafiante = desafiante
+        self.desafiado = desafiado
+        self.aceito = None
+
+    @discord.ui.button(label="⚔️ Aceitar", style=discord.ButtonStyle.success)
+    async def aceitar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.desafiado.id:
+            await interaction.response.send_message("Apenas o desafiado pode aceitar!", ephemeral=True)
+            return
+        self.aceito = True
+        self.stop()
+        embed = discord.Embed(
+            title="⚔️ Desafio Aceito!",
+            description=(
+                f"{self.desafiado.mention} aceitou o confronto contra {self.desafiante.mention}!\n\n"
+                "Preparem-se... O duelo vai começar!"
+            ),
+            color=0x2ECC71
+        )
+        await interaction.response.edit_message(embed=embed, view=None)
+
+    @discord.ui.button(label="❌ Recusar", style=discord.ButtonStyle.danger)
+    async def recusar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.desafiado.id:
+            await interaction.response.send_message("Apenas o desafiado pode recusar!", ephemeral=True)
+            return
+        self.aceito = False
+        self.stop()
+        embed = discord.Embed(
+            title="❌ Desafio Recusado",
+            description=f"{self.desafiado.mention} recusou o confronto.",
+            color=0xE74C3C
+        )
+        await interaction.response.edit_message(embed=embed, view=None)
+
+    async def on_timeout(self):
+        self.aceito = False
+        self.stop()
+
+
+class Confronto:
+    """Gerencia um duelo 1v1 entre dois jogadores."""
+    def __init__(self, bot, canal, jogador1, jogador2):
+        self.bot = bot
+        self.canal = canal
+        self.jogador1 = jogador1  # desafiante
+        self.jogador2 = jogador2  # desafiado
+        self.placar = {jogador1.id: 0, jogador2.id: 0}
+        self.rodada_atual = 0
+        self.max_rodadas = 3  # Melhor de 3 (primeiro a 2)
+        self.vitorias_necessarias = 2
+        self.personagem_atual = None
+        self.emojis_atual = []
+        self.indice_dica = 1
+        self.tempo_espera = 20
+        self.rodada_ativa = False
+        self.task_rodada = None
+        self.terminado = False
+
+    def e_jogador(self, user_id):
+        return user_id in (self.jogador1.id, self.jogador2.id)
+
+    def _barra_placar(self):
+        p1 = self.placar[self.jogador1.id]
+        p2 = self.placar[self.jogador2.id]
+        return f"**{self.jogador1.display_name}** `{p1}` ⚔️ `{p2}` **{self.jogador2.display_name}**"
+
+    async def iniciar(self):
+        await asyncio.sleep(3)
+        await self.proxima_rodada()
+
+    async def proxima_rodada(self):
+        if self.terminado:
+            return
+
+        # Checar se alguém já venceu
+        for uid, pontos in self.placar.items():
+            if pontos >= self.vitorias_necessarias:
+                await self.finalizar(uid)
+                return
+
+        self.rodada_atual += 1
+
+        # Após 3 rodadas sem vencedor — estende para melhor de 5
+        if self.rodada_atual > 3 and self.max_rodadas == 3:
+            self.max_rodadas = 5
+            self.vitorias_necessarias = 3
+            embed = discord.Embed(
+                title="🔄 Empate! Extensão para Melhor de 5!",
+                description=(
+                    f"O confronto continua! Agora é **melhor de 5** (primeiro a **3**)!\n\n"
+                    f"{self._barra_placar()}"
+                ),
+                color=0xF1C40F
+            )
+            await self.canal.send(embed=embed)
+            await asyncio.sleep(3)
+
+        # Após 5 rodadas, quem tiver mais pontos vence
+        if self.rodada_atual > 5:
+            p1 = self.placar[self.jogador1.id]
+            p2 = self.placar[self.jogador2.id]
+            if p1 > p2:
+                await self.finalizar(self.jogador1.id)
+            elif p2 > p1:
+                await self.finalizar(self.jogador2.id)
+            else:
+                await self.finalizar(None)
+            return
+
+        # Sorteia personagem para esta rodada
+        personagem = random.choice(dados["personagens"])
+        self.personagem_atual = personagem
+        self.emojis_atual = escolher_emojis(personagem)
+        self.indice_dica = 1
+        self.rodada_ativa = True
+
+        # Anúncio da rodada
+        embed = discord.Embed(
+            title=f"⚔️ Rodada {self.rodada_atual}",
+            description=(
+                f"{self._barra_placar()}\n\n"
+                "Preparem-se... As dicas estão chegando!"
+            ),
+            color=0xE67E22
+        )
+        await self.canal.send(embed=embed)
+        await asyncio.sleep(2)
+
+        # Inícia as dicas
+        self.task_rodada = self.bot.loop.create_task(self.loop_dicas_confronto())
+
+    async def enviar_dica_confronto(self):
+        emojis_atuais = "".join(self.emojis_atual[:self.indice_dica])
+        total_emojis = len(self.emojis_atual)
+        embed = discord.Embed(
+            title="⚔️ Adivinhe o Personagem!",
+            description=(
+                f"**Dica {self.indice_dica} de {total_emojis}**\n\n"
+                f"> ## {emojis_atuais}"
+            ),
+            color=0xE67E22
+        )
+        embed.set_footer(text=f"Rodada {self.rodada_atual} • Apenas {self.jogador1.display_name} e {self.jogador2.display_name} podem responder")
+        await self.canal.send(embed=embed)
+
+    async def loop_dicas_confronto(self):
+        try:
+            await self.enviar_dica_confronto()
+            while self.indice_dica < len(self.emojis_atual):
+                await asyncio.sleep(self.tempo_espera)
+                if not self.rodada_ativa:
+                    return
+                self.indice_dica += 1
+                await self.enviar_dica_confronto()
+
+            await asyncio.sleep(self.tempo_espera)
+
+            if self.rodada_ativa:
+                self.rodada_ativa = False
+                embed = discord.Embed(
+                    title="⏰ Tempo Esgotado!",
+                    description=f"Ninguém acertou nessa rodada! Nenhum ponto distribuído.\n\n{self._barra_placar()}",
+                    color=0xFF0000
+                )
+                await self.canal.send(embed=embed)
+                await asyncio.sleep(3)
+                await self.proxima_rodada()
+        except asyncio.CancelledError:
+            pass
+
+    async def processar_chute(self, message):
+        """Processa um chute no modo confronto. Retorna True se foi consumido."""
+        if not self.rodada_ativa or self.terminado:
+            return False
+        if not self.e_jogador(message.author.id):
+            return False
+
+        if chute_corresponde(message.content, self.personagem_atual["respostas_aceitas"]):
+            self.rodada_ativa = False
+            if self.task_rodada and not self.task_rodada.done():
+                self.task_rodada.cancel()
+
+            self.placar[message.author.id] += 1
+
+            embed = discord.Embed(
+                title="✅ Ponto!",
+                description=(
+                    f"{message.author.mention} acertou! **+1 ponto** 🎯\n\n"
+                    f"{self._barra_placar()}"
+                ),
+                color=0x2ECC71
+            )
+            await message.reply(embed=embed)
+            await asyncio.sleep(3)
+            await self.proxima_rodada()
+            return True
+
+        return False
+
+    async def finalizar(self, vencedor_id):
+        """Encerra o confronto e anuncia o resultado."""
+        self.terminado = True
+        self.rodada_ativa = False
+        if self.task_rodada and not self.task_rodada.done():
+            self.task_rodada.cancel()
+        confrontos_ativos.pop(self.canal.id, None)
+
+        p1 = self.placar[self.jogador1.id]
+        p2 = self.placar[self.jogador2.id]
+
+        if vencedor_id is None:
+            embed = discord.Embed(
+                title="🤝 Empate Total!",
+                description=(
+                    f"O confronto terminou empatado!\n\n"
+                    f"**Placar Final:**\n{self._barra_placar()}"
+                ),
+                color=0x95A5A6
+            )
+        else:
+            vencedor = self.jogador1 if vencedor_id == self.jogador1.id else self.jogador2
+            embed = discord.Embed(
+                title="🏆 Fim do Confronto!",
+                description=(
+                    f"🌟 {vencedor.mention} **venceu o duelo!** 🌟\n\n"
+                    f"**Placar Final:**\n{self._barra_placar()}"
+                ),
+                color=0xFFD700
+            )
+
+        await self.canal.send(embed=embed)
+
+
 # ====== Handler de erros de comandos ======
 @bot.event
 async def on_command_error(ctx, error):
@@ -542,7 +784,8 @@ async def help(ctx):
         name="🎯 Jogo",
         value=(
             "> `#iniciar` — Inicia um novo desafio\n"
-            "> `#dica` — Pula o timer e revela a próxima dica"
+            "> `#dica` — Pula o timer e revela a próxima dica\n"
+            "> `#confronto @usuário` — Desafie alguém para um duelo 1v1"
         ),
         inline=False
     )
@@ -1343,6 +1586,73 @@ async def call_amon(ctx):
     await ctx.send(embed=embed)
 
 @bot.command()
+async def confronto(ctx, oponente: discord.Member = None):
+    """Desafia outro usuário para um duelo 1v1. Uso: #confronto @usuário"""
+    if not e_canal_permitido(ctx):
+        await msg_erro(ctx, "Este comando não está permitido neste canal.")
+        return
+
+    if not oponente:
+        await msg_aviso(ctx, "Mencione quem você quer desafiar!\nUso: `#confronto @usuário`")
+        return
+
+    if oponente.bot:
+        await msg_erro(ctx, "Você não pode desafiar um bot!")
+        return
+
+    if oponente.id == ctx.author.id:
+        await msg_erro(ctx, "Você não pode se desafiar!")
+        return
+
+    if ctx.channel.id in jogos_ativos:
+        await msg_aviso(ctx, "Já existe um jogo rolando neste canal! Espere acabar.")
+        return
+
+    if ctx.channel.id in confrontos_ativos:
+        await msg_aviso(ctx, "Já existe um confronto rolando neste canal! Espere acabar.")
+        return
+
+    if not dados["personagens"] or len(dados["personagens"]) < 3:
+        await msg_erro(ctx, "São necessários pelo menos **3 personagens** cadastrados para o modo confronto.")
+        return
+
+    # Enviar convite
+    embed = discord.Embed(
+        title="⚔️ Desafio de Confronto!",
+        description=(
+            f"{ctx.author.mention} desafiou {oponente.mention} para um **duelo 1v1**!\n\n"
+            "🏆 **Melhor de 3** — primeiro a 2 acertos vence!\n"
+            "🔄 Em caso de empate, estende para **melhor de 5**.\n\n"
+            f"{oponente.mention}, você aceita o desafio?"
+        ),
+        color=0xE67E22
+    )
+
+    view = AceitarConfrontoView(ctx.author, oponente)
+    msg = await ctx.send(embed=embed, view=view)
+
+    # Espera a resposta
+    await view.wait()
+
+    if not view.aceito:
+        if view.aceito is None:  # Timeout
+            embed_timeout = discord.Embed(
+                title="⏰ Tempo Esgotado",
+                description=f"{oponente.mention} não respondeu ao desafio a tempo.",
+                color=0x95A5A6
+            )
+            await msg.edit(embed=embed_timeout, view=None)
+        return
+
+    # Desafio aceito! Criar o confronto
+    duelo = Confronto(bot, ctx.channel, ctx.author, oponente)
+    confrontos_ativos[ctx.channel.id] = duelo
+
+    # Iniciar o confronto em background
+    bot.loop.create_task(duelo.iniciar())
+
+
+@bot.command()
 async def dica(ctx):
     if not e_canal_permitido(ctx):
         return
@@ -1368,6 +1678,12 @@ async def on_message(message):
 
     # Processa comandos primeiro
     await bot.process_commands(message)
+
+    # Checa se há um confronto ativo neste canal (prioridade sobre jogo normal)
+    if message.channel.id in confrontos_ativos:
+        duelo = confrontos_ativos[message.channel.id]
+        await duelo.processar_chute(message)
+        return  # No confronto, só os duelistas respondem
 
     # Depois checa se a mensagem é um chute em um jogo ativo
     if message.channel.id in jogos_ativos:
