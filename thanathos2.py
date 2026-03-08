@@ -125,8 +125,9 @@ def encontrar_amon():
 
 def gerar_evento_amon(personagem_vitima):
     """
-    Gera os emojis do evento Amon: pega os emojis de um personagem vítima
-    e injeta 2 emojis do Amon em posições aleatórias.
+    Gera os emojis do evento Amon (parasita): pega os emojis de um personagem vítima
+    e injeta 2 emojis do Amon em posições a partir da 2ª.
+    O primeiro emoji é SEMPRE da vítima (o parasita se esconde atrás dela).
     Retorna a lista de emojis manipulados.
     """
     amon = encontrar_amon()
@@ -142,13 +143,18 @@ def gerar_evento_amon(personagem_vitima):
     # Seleciona 2 emojis do Amon para injetar
     amon_injecao = random.sample(emojis_amon, min(2, len(emojis_amon)))
     
-    # Substitui 2 posições aleatórias dos emojis da vítima
-    if len(emojis_vitima) >= 2:
-        posicoes = random.sample(range(len(emojis_vitima)), 2)
+    # Substitui posições aleatórias, MAS NUNCA a posição 0 (primeiro emoji sempre da vítima)
+    if len(emojis_vitima) >= 3:
+        # Posições disponíveis: 1 em diante (protege o índice 0)
+        posicoes_disponiveis = list(range(1, len(emojis_vitima)))
+        posicoes = random.sample(posicoes_disponiveis, min(2, len(posicoes_disponiveis)))
         for i, pos in enumerate(posicoes):
             emojis_vitima[pos] = amon_injecao[i % len(amon_injecao)]
+    elif len(emojis_vitima) == 2:
+        # Só pode injetar na posição 1
+        emojis_vitima[1] = amon_injecao[0]
     else:
-        # Se a vítima só tem 1 emoji, adiciona os do Amon
+        # Se a vítima só tem 1 emoji, adiciona os do Amon depois
         emojis_vitima.extend(amon_injecao)
     
     return emojis_vitima
@@ -239,22 +245,11 @@ class JogoEmoji:
             
             await asyncio.sleep(self.tempo_espera)
 
-            if self.modo_amon:
-                embed_fim = discord.Embed(
-                    title="⏰ Tempo Esgotado!",
-                    description=(
-                        f"Ninguém acertou dessa vez...\n"
-                        f"O personagem era: **{self.vitima_disfarce['nome'] if self.vitima_disfarce else self.personagem['nome']}**\n\n"
-                        f"||🧐 ...ou será que era? O **Amon** estava se passando por outro esse tempo todo! 😈||"
-                    ),
-                    color=0xFF4500
-                )
-            else:
-                embed_fim = discord.Embed(
-                    title="⏰ Tempo Esgotado!",
-                    description=f"Ninguém acertou dessa vez...\nO personagem era: **{self.personagem['nome']}**",
-                    color=0xFF0000
-                )
+            embed_fim = discord.Embed(
+                title="⏰ Tempo Esgotado!",
+                description="Ninguém acertou dessa vez... Quem será que era? 🤔",
+                color=0xFF0000
+            )
             await self.canal.send(embed=embed_fim)
             encerrar_jogo(self.canal.id)
             
@@ -1359,21 +1354,14 @@ async def on_message(message):
                     if not jogo_encerrado.task_dica.done():
                         jogo_encerrado.task_dica.cancel()
 
-                    # 35% de chance de frase dramática, senão genérica
-                    if random.random() < CHANCE_FRASE_AMON:
-                        frase = f"\n\n||{random.choice(AMON_FRASES_ESCAPE)}||"
-                    else:
-                        frase = ""
-                    embed_enganado = discord.Embed(
-                        title="🎭 Você foi Enganado!",
-                        description=(
-                            f"{message.author.mention}, você respondeu **{jogo_encerrado.vitima_disfarce['nome']}**...\n\n"
-                            f"||Mas o personagem real era o **Amon**! 😈||{frase}"
-                        ),
-                        color=0x8B0000
+                    # Amon escapa silenciosamente — jogador não sabe que foi enganado
+                    embed_errou = discord.Embed(
+                        title="❌ Resposta Incorreta!",
+                        description=f"{message.author.mention}, **{jogo_encerrado.vitima_disfarce['nome']}** não era a resposta certa...",
+                        color=0xE74C3C
                     )
-                    embed_enganado.set_footer(text="O Amon escapou impune... da próxima vez, preste atenção nos detalhes.")
-                    await message.reply(embed=embed_enganado)
+                    embed_errou.set_footer(text="Tente novamente na próxima rodada!")
+                    await message.reply(embed=embed_errou)
                     return
 
             if chute_corresponde(chute_do_usuario, jogo.personagem["respostas_aceitas"]):
