@@ -679,25 +679,10 @@ class GameCog(commands.Cog, name="Jogo"):
                 jogo = self.jogos_ativos[message.channel.id]
                 chute_do_usuario = sanitizar_chute(message.content)
 
-                # === Modo Amon: checar se a pessoa chutou a vítima (disfarce) ===
+                # === Modo Amon: se chutou a vítima (disfarce), ignora silenciosamente ===
                 if jogo.modo_amon and jogo.vitima_disfarce:
                     if chute_corresponde(chute_do_usuario, jogo.vitima_disfarce["respostas_aceitas"]):
-                        # Caiu na armadilha! Encerra o jogo e Amon escapa
-                        jogo_encerrado = self.jogos_ativos.pop(message.channel.id, None)
-                        if jogo_encerrado is None:
-                            return
-                        if not jogo_encerrado.task_dica.done():
-                            jogo_encerrado.task_dica.cancel()
-
-                        # Amon escapa silenciosamente — jogador não sabe que foi enganado
-                        embed_errou = discord.Embed(
-                            title="❌ Resposta Incorreta!",
-                            description=f"{message.author.mention}, **{jogo_encerrado.vitima_disfarce['nome']}** não era a resposta certa...",
-                            color=0xE74C3C
-                        )
-                        embed_errou.set_footer(text="Tente novamente na próxima rodada!")
-                        await message.reply(embed=embed_errou)
-                        return
+                        return  # Caiu na armadilha do Amon, mas sem feedback
 
                 if chute_corresponde(chute_do_usuario, jogo.personagem["respostas_aceitas"]):
                     # Pega o jogo e remove da lista de forma atômica
