@@ -96,10 +96,11 @@ confrontos_ativos = {}  # { canal_id: Confronto }
 
 class AceitarConfrontoView(discord.ui.View):
     """Botões para aceitar ou recusar um desafio de confronto."""
-    def __init__(self, desafiante, desafiado):
+    def __init__(self, desafiante, desafiado, rodadas):
         super().__init__(timeout=60)
         self.desafiante = desafiante
         self.desafiado = desafiado
+        self.rodadas = rodadas
         self.aceito = None
 
     @discord.ui.button(label="⚔️ Aceitar", style=discord.ButtonStyle.success)
@@ -138,17 +139,56 @@ class AceitarConfrontoView(discord.ui.View):
         self.stop()
 
 
+class EscolherRodadasView(discord.ui.View):
+    """Botões para o desafiante escolher a quantidade de rodadas."""
+    def __init__(self, autor):
+        super().__init__(timeout=30)
+        self.autor = autor
+        self.rodadas = None
+
+    @discord.ui.button(label="⚔️ Melhor de 3", style=discord.ButtonStyle.primary)
+    async def md3(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Apenas quem desafiou pode escolher!", ephemeral=True)
+            return
+        self.rodadas = 3
+        self.stop()
+        await interaction.response.edit_message(view=None)
+
+    @discord.ui.button(label="⚔️ Melhor de 5", style=discord.ButtonStyle.primary)
+    async def md5(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Apenas quem desafiou pode escolher!", ephemeral=True)
+            return
+        self.rodadas = 5
+        self.stop()
+        await interaction.response.edit_message(view=None)
+
+    @discord.ui.button(label="⚔️ Melhor de 7", style=discord.ButtonStyle.primary)
+    async def md7(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.autor.id:
+            await interaction.response.send_message("Apenas quem desafiou pode escolher!", ephemeral=True)
+            return
+        self.rodadas = 7
+        self.stop()
+        await interaction.response.edit_message(view=None)
+
+    async def on_timeout(self):
+        self.stop()
+
+
 class Confronto:
     """Gerencia um duelo 1v1 entre dois jogadores."""
-    def __init__(self, bot, canal, jogador1, jogador2):
+    def __init__(self, bot, canal, jogador1, jogador2, max_rodadas=3):
         self.bot = bot
         self.canal = canal
         self.jogador1 = jogador1  # desafiante
         self.jogador2 = jogador2  # desafiado
         self.placar = {jogador1.id: 0, jogador2.id: 0}
         self.rodada_atual = 0
-        self.max_rodadas = 3  # Melhor de 3 (primeiro a 2)
-        self.vitorias_necessarias = 2
+        self.max_rodadas = max_rodadas
+        self.vitorias_necessarias = (max_rodadas // 2) + 1  # 3→2, 5→3, 7→4
+        self.max_rodadas_original = max_rodadas  # Para controlar extensão
         self.personagem_atual = None
         self.emojis_atual = []
         self.indice_dica = 1
@@ -181,14 +221,14 @@ class Confronto:
 
         self.rodada_atual += 1
 
-        # Após 3 rodadas sem vencedor — estende para melhor de 5
-        if self.rodada_atual > 3 and self.max_rodadas == 3:
-            self.max_rodadas = 5
-            self.vitorias_necessarias = 3
+        # Após esgotar todas as rodadas sem vencedor — estende +2 rodadas
+        if self.rodada_atual > self.max_rodadas:
+            self.max_rodadas += 2
+            self.vitorias_necessarias = (self.max_rodadas // 2) + 1
             embed = discord.Embed(
-                title="🔄 Empate! Extensão para Melhor de 5!",
+                title="🔄 Empate! Extensão!",
                 description=(
-                    f"O confronto continua! Agora é **melhor de 5** (primeiro a **3**)!\n\n"
+                    f"O confronto continua! Agora é **melhor de {self.max_rodadas}** (primeiro a **{self.vitorias_necessarias}**)!\n\n"
                     f"{self._barra_placar()}"
                 ),
                 color=0xF1C40F
@@ -196,8 +236,8 @@ class Confronto:
             await self.canal.send(embed=embed)
             await asyncio.sleep(3)
 
-        # Após 5 rodadas, quem tiver mais pontos vence
-        if self.rodada_atual > 5:
+        # Se já passou do limite estendido, quem tiver mais pontos vence
+        if self.rodada_atual > self.max_rodadas:
             p1 = self.placar[self.jogador1.id]
             p2 = self.placar[self.jogador2.id]
             if p1 > p2:
@@ -1616,19 +1656,43 @@ async def confronto(ctx, oponente: discord.Member = None):
         await msg_erro(ctx, "São necessários pelo menos **3 personagens** cadastrados para o modo confronto.")
         return
 
+    # Escolher quantidade de rodadas
+    embed_rodadas = discord.Embed(
+        title="⚔️ Escolha o Formato do Duelo",
+        description=(
+            f"{ctx.author.mention}, escolha quantas rodadas terá o confronto contra {oponente.mention}:\n\n"
+            "• **Melhor de 3** — primeiro a 2 vence\n"
+            "• **Melhor de 5** — primeiro a 3 vence\n"
+            "• **Melhor de 7** — primeiro a 4 vence\n\n"
+            "*Em caso de empate, rodadas extras serão adicionadas.*"
+        ),
+        color=0x3498DB
+    )
+    view_rodadas = EscolherRodadasView(ctx.author)
+    msg_rodadas = await ctx.send(embed=embed_rodadas, view=view_rodadas)
+    await view_rodadas.wait()
+
+    if not view_rodadas.rodadas:
+        embed_cancel = discord.Embed(description="⏰ Tempo esgotado! Confronto cancelado.", color=0x95A5A6)
+        await msg_rodadas.edit(embed=embed_cancel, view=None)
+        return
+
+    rodadas = view_rodadas.rodadas
+    vitorias = (rodadas // 2) + 1
+
     # Enviar convite
     embed = discord.Embed(
         title="⚔️ Desafio de Confronto!",
         description=(
             f"{ctx.author.mention} desafiou {oponente.mention} para um **duelo 1v1**!\n\n"
-            "🏆 **Melhor de 3** — primeiro a 2 acertos vence!\n"
-            "🔄 Em caso de empate, estende para **melhor de 5**.\n\n"
+            f"🏆 **Melhor de {rodadas}** — primeiro a {vitorias} acertos vence!\n"
+            "🔄 Em caso de empate, rodadas extras serão adicionadas.\n\n"
             f"{oponente.mention}, você aceita o desafio?"
         ),
         color=0xE67E22
     )
 
-    view = AceitarConfrontoView(ctx.author, oponente)
+    view = AceitarConfrontoView(ctx.author, oponente, rodadas)
     msg = await ctx.send(embed=embed, view=view)
 
     # Espera a resposta
@@ -1645,7 +1709,7 @@ async def confronto(ctx, oponente: discord.Member = None):
         return
 
     # Desafio aceito! Criar o confronto
-    duelo = Confronto(bot, ctx.channel, ctx.author, oponente)
+    duelo = Confronto(bot, ctx.channel, ctx.author, oponente, max_rodadas=view.rodadas)
     confrontos_ativos[ctx.channel.id] = duelo
 
     # Iniciar o confronto em background
