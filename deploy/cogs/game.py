@@ -444,10 +444,15 @@ class GameCog(commands.Cog, name="Jogo"):
     # ====== Utilitário ======
 
     def encerrar_jogo(self, canal_id):
-        """Remove um jogo ativo e cancela a task de dicas."""
+        """Remove um jogo ativo, cancela a task de dicas e quebra o combo ativo."""
         jogo = self.jogos_ativos.pop(canal_id, None)
-        if jogo and not jogo.task_dica.done():
-            jogo.task_dica.cancel()
+        if jogo:
+            if not jogo.task_dica.done():
+                jogo.task_dica.cancel()
+            # Timeout = ninguém acertou → quebra o combo do jogador que tinha streak
+            guild_id = jogo.canal.guild.id
+            if guild_id in self.streaks:
+                del self.streaks[guild_id]
 
     # ====== Comandos do Jogo ======
 
