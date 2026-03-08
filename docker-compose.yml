@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  thanathos:
+    build: .
+    container_name: thanathos_bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # O lado esquerdo é o host, o lado direito é o caminho dentro do WORKDIR do container.
+      # Se esse mapeamento falhar, você perde os dados quando o container atualizar.
+      - ./dados_jogo.json:/bot/dados_jogo.json

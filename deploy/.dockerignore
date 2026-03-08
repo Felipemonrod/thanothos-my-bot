@@ -1,0 +1,13 @@
+.env
+.env.example
+.git/
+__pycache__/
+*.pyc
+*.pyo
+token.txt
+thanathos2.py
+README.md
+*.backup_*
+.gitignore
+.dockerignore
+docker-compose.yml
