@@ -59,6 +59,37 @@ bot.remove_command('help') # Remove o comando de ajuda padrão do discord.py par
 
 jogos_ativos = {}
 
+# ====== Sistema de Streaks (Combo de acertos consecutivos) ======
+# Formato: { guild_id: { "user_id": int, "streak": int } }
+streaks = {}
+
+def registrar_streak(guild_id, user_id):
+    """Registra um acerto e retorna o streak atual do jogador."""
+    if guild_id in streaks and streaks[guild_id]["user_id"] == user_id:
+        streaks[guild_id]["streak"] += 1
+    else:
+        streaks[guild_id] = {"user_id": user_id, "streak": 1}
+    return streaks[guild_id]["streak"]
+
+def gerar_texto_streak(streak):
+    """Gera o texto visual do combo baseado na quantidade de acertos."""
+    if streak < 2:
+        return None  # Sem combo ainda
+    if streak == 2:
+        return "🔥 **Combo x2!** Dois acertos seguidos!"
+    elif streak == 3:
+        return "🔥🔥 **Combo x3!** Está pegando fogo!"
+    elif streak == 4:
+        return "🔥🔥🔥 **Combo x4!** Imparável!"
+    elif streak == 5:
+        return "⚡🔥 **Combo x5!** Cinco seguidos! Monstruoso!"
+    elif streak <= 7:
+        return f"⚡🔥🔥 **Combo x{streak}!** Ninguém para esse jogador!"
+    elif streak <= 10:
+        return f"💥⚡🔥 **Combo x{streak}!** Sequência lendária!"
+    else:
+        return f"👑💥⚡🔥 **COMBO x{streak}!!** Dominação absoluta!"
+
 # ====== Handler de erros de comandos ======
 @bot.event
 async def on_command_error(ctx, error):
@@ -1376,6 +1407,10 @@ async def on_message(message):
                 if not jogo_encerrado.task_dica.done():
                     jogo_encerrado.task_dica.cancel()
 
+                # Registra streak
+                streak = registrar_streak(message.guild.id, message.author.id)
+                texto_streak = gerar_texto_streak(streak)
+
                 if jogo_encerrado.modo_amon:
                     embed_vitoria = discord.Embed(
                         title="🧐😈 Amon foi Descoberto!",
@@ -1395,6 +1430,10 @@ async def on_message(message):
                         ),
                         color=0xFFD700 
                     )
+
+                if texto_streak:
+                    embed_vitoria.add_field(name="\u200b", value=texto_streak, inline=False)
+
                 await message.reply(embed=embed_vitoria)
                 return
 
